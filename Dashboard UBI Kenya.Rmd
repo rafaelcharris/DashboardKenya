@@ -153,20 +153,8 @@ Row {.tabset}
 
 ### Price Distributions
 ```{r}
-
-observeEvent(input$kenyamap_marker_click, {
-   #leafletProxy("kenyamap", session) %>%
-   #  removeMarker(input$map1_marker_click$id)
-  renderText({input$kenyamap_marker_click})
-  })
-
 renderText({
-  #if (is.null(click)){
-  #  return (NULL)
-  #}
-  #paste0("Information for :", df %>% 
-  #         filter(latitude == click$lat, longitude == click$lon))
-  #paste0("inputMap: ", input$map_click)
+ 
 })
 
 
@@ -228,13 +216,7 @@ renderPlot({
       #col = 'black') +
     #theme_wsj() +
     labs(x = "$", y = "Density", fill = "Treatment")
-  
-  # ##
-# ggplot(aes(x = cons_food, y = ..count..,
-#                 fill = as.factor(treat))) +
-#   geom_histogram(position = "dodge", col = "black") +
-#   theme_wsj() + 
-#   labs(x = "$", y = "Density", fill = "Treatment")
+
 })
 
 renderPlot({
