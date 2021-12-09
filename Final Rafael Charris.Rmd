@@ -1,0 +1,347 @@
+---
+title: 'Effect of UCT in Kenya: An RCT'
+author: "Rafael Charris"
+date: "11/22/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+library(foreign) # use this instead of haven to merge the data frames
+library(tidyverse)
+library(rethinking)
+library(haven)
+library(sf)
+library(dagitty)
+library(table1)
+
+df <- read_dta("./data/cashtransfers_v12.dta") %>%
+   group_by(village) %>%
+  rowid_to_column()
+df_foreing <- read.dta("./data/cashtransfers_v12.dta")
+# Villages data
+df_v <- readxl::read_excel("./data/villages.xls")
+df_merged <- df_foreing %>%
+  left_join(df_v, by = "village")
+df_original <- read_dta("./data/UCT_FINAL_CLEAN.dta")
+```
+
+
+# Introduction
+
+Universal Basic Income (UBI) is an idea that has been increasingly popular in recent years as an strategy to alleviate poverty.
+The idea is that one of the ways of alleviating poverty is by giving money to people. People that express support for this measure come from all the political spectrum from Milton Friedman to XXXX (REFERENCES). 
+However, critics of this measures point out that there may be unintended consequences of giving money to everyone. For once, it would reduce the incentive to work. This would create a labor market shortage that would have an impact of prices: business would have to pay more to hire someone and would transfer this extra cost to consumers, rising the prices.
+This increase in prices or inflation would make the policy useless: yes, people would have more bills in their hands or money in their bank accounts but it would be less valuable. (REFERECES).
+
+These effects are hard to see without proper statistical analysis and field experiments, so recently there have been plenty. For example, ...
+
+Similar strategies to UBI are unconditional cash transfers (UCT). This is very similar to UBI but it is usually targeted to the poorest members of society. UCT stands in contrast to conditional cash transfers (CCT) which have been used heavily in the developing world. For example, in Colombia there is the program Familias en Acción which gives money to families with the lowest income in the country conditional on they having their children in school.
+
+The benefit of UCT over CCT is that people can decide how to spend the money the got without having to worry about fulfilling certain obligation which may be hard to follow given their situation
+
+In this paper, I focus 
+
+The purpose of this paper is to explore the data from a field experiment conducted in YEAR in different villages in Kenya. The experiment gave out money to different households with the purpose of understanding how this money would affect their economic and psychological situation as well as whether there would be any effects on prices in the villages.
+Is important to point out that this experiment is not one on Universal Basic Income because here only some poor households are receiving money. The effects ( or lack of thereof) that i find here may be due to the scale of this experiment in particular and not a reflection of the effect of giving money to the whole population. This effect could be very different in prices in particular. Nevertheless, this is a good start to explore whether this is a feasible strategy to help the poorest members of society.
+```{r map, eval= FALSE}
+kenyasub <- st_read("data/SubcountyKenya/Sub_County_Kenya.shp")
+ggplot() +
+  geom_sf(data = kenyasub)
+```
+
+## Research Questions:
+
+1. Does receiving unconditional cash transfer increases psychological well being relative to the control group?
+
+2. Does receiving unconditional cash transfer increases spending ? 
+
+3. Does the effect of spending is different for male and female recepients?
+
+4. Does receiving UCT increase the prices in the villages that receive this money relative to those that did not received it?
+
+# Design
+
+This program was implemented by the NGO **Give Directly** between 2011 and 2013 in western Kenya. The purpose of this NGO is to make unconditional cash transfers to poor households in developing countries. The evaluation of this program was conducted by a team of researchers from Princeton and Busara Center of Behavioral Economics led by Johannes Haushofer and Jeremy Shapiro.
+
+The design has two levels of randomization and three treatments. The first level of 
+Households were selected if they had thatched roof[^1]. They choose the household using a survey.
+[1 I don't know if this is a good criteria for deciding which household was the poorest]
+After identification, representatives of GD went to each elected household and told the recipient that they would received 404 USD total. They were informed also about the schedule of the transaction (lump-sum vs direct).
+They were given a SIM card and were asked to register to the service M-Pesa: a mobile banking service present in Kenya, Tanzania, Afganistan, Uganda, Rwanda and Tanzania.
+
+# DAG 
+
+First, we need to describe the causal structure of the intervention to design the model.
+
+```{r, echo = FALSE, fig.dim = c(4,5), fig.cap = "DAG for question 1"}
+dag_q1 <- dagitty(
+  "dag{
+  Treatment -> Consumption
+  Gender -> Consumption
+  NumKids -> Consumption
+  }"
+)
+plot(dag_q1)
+```
+
+```{r, echo = FALSE, fig.dim = c(4,5), fig.cap = "DAG for question 2"}
+dag_q2 <- dagitty(
+  "dag{
+  Treatment -> Happiness
+  Treatment -> NeighborNotTreated
+  NeighborNotTreated -> Happiness
+  Gender -> Happiness
+  NumKids -> Happiness
+  }"
+)
+plot(dag_q2)
+```
+
+```{r, echo = FALSE, fig.dim = c(4,5), fig.cap = "DAG for question 3"}
+dag_q3 <- dagitty(
+  "dag{
+  Transaction -> Prices
+  NeighborTransaction -> Prices
+  }"
+)
+plot(dag_q3)
+```
+
+
+# Models
+
+I will run two models to answer my two questions. First, I want to know whether the extra money had an effect on consumption 
+
+
+
+
+Secondly i want to know whether this extra income had an effect on psychological well-being
+
+
+
+# Results
+
+## Missing Values
+
+```{r}
+df<- df %>%
+  mutate(female = ifelse(gender == 1, 1 , 0),
+         treatXfemale = treat + 2*(female + 1) -1) %>%
+  filter(!is.na(gender)) %>%
+  group_by(village) %>%
+  rowid_to_column()
+
+d <- list(
+  cons_social = df$cons_social,
+  treat = ifelse(df$treat ==1, 1,2),
+  female = ifelse(df$female == 1, 1, 2),
+  treatXfemale = df$treatXfemale,
+  village = df$rowid
+)
+
+m_sc1 <- ulam(
+  alist(
+    cons_social ~ half_normal(mu, sigma),
+    mu <- b1[treat],
+    b1[treat] ~ half_normal(0, 10000),
+    sigma ~ exponential(0.001)
+  ), data = list(cons_social = d$cons_social, treat = d$treat),
+  chain = 1, iter = 10000
+)
+precis(m_sc1, depth = 2)
+
+m_sc2 <- ulam(
+  alist(
+    cons_social ~ dnorm(mu, sigma),
+    mu <- b1[treat] + b2[treatXfemale],
+    b1[treat] ~ normal(2000,500),
+    b2[treatXfemale] ~ normal(2000, 500),
+    sigma ~ exponential(1)
+  ), data = d, chain = 4, cores = 4, iter = 1000
+)
+precis(m_sc2, depth = 2)
+
+m_sc3 <- ulam(
+  alist(
+    cons_social ~ lognormal(mu, sigma),
+    mu <- b1[treat] + b4[female] + b2[treatXfemale] + b3[village],
+    b1[treat] ~ lognormal(2000, 500),
+    b4[female] ~ lognormal(2000, 500),
+    b2[treatXfemale] ~ lognormal(2000, 500),
+    b3[village] ~ lognormal(a_bar, tau),
+    a_bar ~ lognormal(2000, 500),
+    tau ~exponential(0.001),
+    sigma ~ exponential(0.001)
+  ), data = d, chain = 1, cores = 4, iter = 1000
+)
+
+precis(m_sc3, depth = 2, 
+       pars = c("b1", "b4", "b2", "a_bar", "tau", "sigma"))
+
+```
+
+## Ordinal regression
+```{r}
+d1 <- df %>%
+  filter(!is.na(gender), !is.na(wvs_happiness)) %>%
+  mutate(wvs_happiness = 5 - as.numeric(wvs_happiness),
+         treat = ifelse(treat==1, 1, 2))
+d <- list(
+  happ = as.numeric(d1$wvs_happiness),
+  gender = d1$gender,
+  treat = d1$treat,
+  village = d1$rowid
+)
+m <- ulam(
+  alist(
+    happ ~ dordlogit(phi, cutpoints),
+    phi <- b1[treat] + b3[gender] + b4[village],
+    cutpoints ~ dnorm(0, 1),
+    b1[treat]  ~ dnorm(0, 1),
+    b3[gender] ~ dnorm(0, 1),
+    b4[village] ~ dnorm(a_bar, sigma), # The effect of village is different 
+    a_bar ~ dnorm(0, 2), # I'm estimating the grandmean
+    sigma ~ exponential(1)
+  ), data = d, chains=1 ,  cores=4 
+)
+post <- extract.samples(m)
+precis(post, depth = 2)
+```
+
+
+### Price arguments
+
+```{r}
+#CONTROL FOR THE AMOUNT THAT THEY RECEIVED! NOT ALL VILLAGES GOT THE SAME MONEY 
+# PLOT THE DATA BY GROUPS TO SEE IF i HAVE TO CARE ABOUT THE LEVELS OF DATA.!
+price_plot <- price_plot %>%
+  group_by(village) %>%
+  mutate(amount_received = sum(treat)*)
+d2 <- list(
+price = price_plot$v_price_index,
+treat = ifelse(price_plot$transaction == 1, 1, 2)
+)
+m_price <- ulam(
+  alist(
+    price ~ normal(mu, sigma),
+    mu <- b1[treat],
+    b1[treat]  ~ normal(0, 2),
+    #a_bar ~ normal(0, 2),
+    sigma ~ exponential(1)
+  ), data = d2, chains=1
+)
+post_m_price <- extract.samples(m_price)
+precis(post_m_price, depth = 2)
+```
+
+
+```{r}
+d1 <- df %>%
+  filter(!is.na(gender), !is.na(wvs_happiness)) %>%
+  mutate(wvs_happiness = 5 - as.numeric(wvs_happiness),
+         treat = ifelse(treat==1, 1, 2))
+
+```
+
+
+The prices are a diff in diff. remember the problem with the paper that we read in kevs class
+
+# Results
+
+```{r}
+# Happines
+df %>% 
+  filter(treat == 0 && purecontrol == 0) %>%
+ggplot(aes(x = as.factor(treat), y = wvs_happiness)) +  
+  geom_point( position = "jitter") 
+
+#Life satisfaction
+df %>% 
+  filter(treat == 0 && purecontrol == 0) %>%
+ggplot(aes(x = as.factor(treat), y = wvs_life_sat)) +  
+  #geom_point( position = "jitter")  + 
+    stat_summary(fun = mean,
+               geom = "point")
+
+# Social consumption
+df %>% 
+  filter(treat == 0 && purecontrol == 0) %>%
+ggplot(aes(x = as.factor(treat), y = cons_social)) +  
+  #geom_point( position = "jitter") 
+  stat_summary(fun = mean,
+               geom = "point")
+
+# Price change? 
+ggplot(df_merged, aes(x =v_price_index, fill= as.factor(treat))) +  
+  geom_density(alpha = 0.5) 
+
+df$miss_life <- ifelse(is.na(df$wvs_life_sat), 1, 0)
+```
+
+## Spillover effects
+
+```{r}
+# Happines
+df %>% 
+  filter(treat == 0 || purecontrol == 1) %>%
+ggplot(aes(x = as.factor(purecontrol), y = wvs_happiness)) +  
+  geom_point( position = "jitter") 
+
+#Life satisfaction
+df %>% 
+  filter(treat == 0 && purecontrol == 0) %>%
+ggplot(aes(x = as.factor(treat), y = wvs_life_sat)) +  
+  #geom_point( position = "jitter")  + 
+    stat_summary(fun = mean,
+               geom = "point")
+
+# Social consumption
+df %>% 
+  filter(treat == 0 && purecontrol == 0) %>%
+ggplot(aes(x = as.factor(treat), y = cons_social)) +  
+  #geom_point( position = "jitter") 
+  stat_summary(fun = mean,
+               geom = "point")
+```
+
+
+
+
+```{r PriceIndex, fig.cap="Effect of the transfer on the price", fig.dim=c(4,5), echo = FALSE}
+
+price_plot <- df_merged %>% 
+  distinct(village, .keep_all = TRUE) %>%
+  select(village, sublocation, longitude, latitude, v_price_index, purecontrol)
+library(plotly)
+
+price_plot_summary <- price_plot %>%
+  group_by(purecontrol) %>%
+  summarise(mean_price = mean(v_price_index),
+            sd_price = sd(v_price_index))
+
+p<- ggplot(price_plot, 
+       aes(x = as.factor(purecontrol), y = v_price_index)) +
+    geom_point(position = "jitter",
+             aes(text=village)) + 
+  stat_summary(fun = mean,
+             col = "red",
+             geom = "point") +
+  theme_minimal() + 
+  labs(y = "Price Index", x = "Pure Control")
+
+ggplotly(p, tooltip = "text")
+```
+
+
+
+# Limitations 
+
+One very important question that was not considered in the design of the paper and form which data is not available, is the effect of the transfers on the labor market. One of the criticisms to UCT, and UBI is that it will make people not go to work as their incentives will be 
+
+# References
+```{r}
+table1(~ age+ as.factor(gender) +  as.factor(education), data = df_foreing)
+```
+
+
+
