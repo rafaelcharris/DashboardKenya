@@ -1,0 +1,304 @@
+---
+title: "UBI Kenya Dashboards"
+author: "Rafael Charris"
+date: "11/22/2021"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    source_code: embed
+runtime: shiny
+---
+
+```{r setup, include=FALSE, message=FALSE, warning=FALSE}
+library(flexdashboard)
+library(haven) # to read dta files
+library(foreign)
+library(leaflet)
+library(tidyverse)
+library(osmdata)
+library(htmltools) # tools for the map
+library(sf)
+library(ggmap)
+library(shinyWidgets)
+library(plotly)
+library(ggthemes)
+
+#General data set
+df <- read.dta("./data/cashtransfers_v12.dta") %>%
+  filter
+
+#load price data
+df_price <- readxl::read_xls("./data/villages.xls")
+# Merge both data sets by village
+df_merge <- df %>%
+  left_join(df_price, by = "village")
+# for the price analysis
+price_plot <- df_merge %>% 
+  group_by(village) %>%
+  mutate(transaction = ifelse(treat == 1 | spillover == 1, 1, 0)) %>%
+  distinct(village, .keep_all = TRUE) %>%
+  select(village, sublocation, longitude, latitude, v_price_index, purecontrol, transaction)
+
+price_plot_summary <- price_plot %>%
+  group_by(purecontrol) %>%
+  summarise(mean_price = mean(v_price_index),
+            sd_price = sd(v_price_index))
+
+df_plot = df %>%
+  mutate(treat = ifelse(treat == 1, "UCT == Yes", "UCT == No"))
+#kenya_geo <- sf::st_read("data/kemajor-towns/ke_major-towns.shp")
+```
+
+General Presentation
+==================
+
+Row 
+-----------------------------------------------------------------------
+
+### Purpose of the project
+
+Here I explain what the project consists on 
+
+#### Design
+
+This program was implemented by the NGO **Give Directly** between 2011 and 2013 in western Kenya. The purpose of this NGO is to make unconditional cash transfers to poor households in developing countries. The evaluation of this program was conducted by a team of researchers from Princeton and Busara Center of Behavioral Economics led by Johannes Haushofer and Jeremy Shapiro.
+
+The design has two levels of randomization and three treatments. The first level of 
+Households were selected if they had thatched roof[^1]. They choose the household using a survey.
+[1 I don't know if this is a good criteria for deciding which household was the poorest]
+After identification, representatives of GD went to each elected household and told the recipient that they would received 404 USD total. They were informed also about the schedule of the transaction (lump-sum vs direct).
+They were given a SIM card and were asked to register to the service M-Pesa: a mobile banking service present in Kenya, Tanzania, Afganistan, Uganda, Rwanda and Tanzania.
+
+
+1. amount given
+2. How did they select the villages (120 villages with the highest proportion of tatched roofs)
+3. All elegible villages were identified with a census
+3. approx 19 percent of the households within each village where surveyed, and approx 9 percent of the households within a village got a transfer
+4. Population of villages ?
+5. amount of transfer 25.200 KES (404 USD PPP)
+13,471 KES was the minimum wage in 2012
+1 usd = 62.4 KES
+
+questions: 
+1. frequency of the transfers 
+2. baseline and results dates
+
+Problem: purecontrol villages were identified 1 year later than their treatment villages controls counterparts
+
+map -> what color is non treated and what color is treated
+
+#### Description of the variables
+
+* `price index`: 
+* `well being`: aggregated
+
+### TO-DO
+
+* Take care of missing values
+
+Dashboard
+==================
+
+Inputs {.sidebar}
+-----------------------------------------------------------------------
+
+```{r}
+pickerInput("villageInput", label = h3("Village"), 
+ choices = sort(unique(levels(df_plot$village))),
+ selected = sort(unique(levels(df_plot$village))),
+   multiple = TRUE,
+  options = list(
+        `actions-box` = TRUE,
+        size = 10,
+        `selected-text-format` = "count > 3"
+      ),)
+
+checkboxGroupInput("treatmentInput", label = h3("Treatment"), 
+                   choices = unique(df_plot$treat),
+                   selected = unique(df_plot$treat))
+checkboxGroupInput("purecontrolInput", label = h3("Pure Control"), 
+                   choices = unique(df_plot$purecontrol),
+                   selected = 0)
+checkboxGroupInput("genderInput", label = h3("Gender"), 
+                   choices = unique(df_plot$gender),
+                   selected = unique(df_plot$gender))
+
+```
+
+### Description
+
+Each point is a village in which the study was conducted. Feel free to change which villages you want to see. You can see how the UCT affected the region or how it affected the households within each village
+
+Row {data-height=300}
+-----------------------------------------------------------------------
+
+### Kenya´s Map 
+
+```{r message=FALSE, warning=FALSE}
+pal <- colorNumeric(
+  palette  = c("blue", "red"), 
+  domain = df$purecontrol)
+
+ output$kenyamap <- renderLeaflet({df %>%
+  distinct(village, .keep_all = TRUE) %>%
+  leaflet() %>%
+  addTiles() %>%
+  addCircles(label = ~htmlEscape(village),
+             color = ~pal(purecontrol))})
+leafletOutput("kenyamap")
+```
+
+Row {.tabset}
+-----------------------------------------------------------------------
+
+### Price Distributions
+```{r}
+
+observeEvent(input$kenyamap_marker_click, {
+   #leafletProxy("kenyamap", session) %>%
+   #  removeMarker(input$map1_marker_click$id)
+  renderText({input$kenyamap_marker_click})
+  })
+
+renderText({
+  #if (is.null(click)){
+  #  return (NULL)
+  #}
+  #paste0("Information for :", df %>% 
+  #         filter(latitude == click$lat, longitude == click$lon))
+  #paste0("inputMap: ", input$map_click)
+})
+
+
+p <- ggplot(price_plot, 
+       aes(x = as.factor(purecontrol), 
+           y = v_price_index
+           )) +
+    geom_jitter(
+      #position = "jitter",
+             aes(text = paste0(village, "\nPI: ", round(v_price_index,2))),
+             width = 0.25
+             ) + 
+  stat_summary(fun = mean,
+             col = "red",
+             geom = "point") +
+  labs(y = "Price Index", x = "Treated Village") +
+  theme_minimal()
+
+renderPlotly({ggplotly(p, tooltip = "text")
+    })
+```
+
+
+### Well-Being
+```{r}
+filtered <- reactive(df_plot %>%
+                       filter(
+                              treat %in%input$treatmentInput,
+                              purecontrol %in% input$purecontrolInput,
+                              gender %in% input$genderInput)
+)
+renderPlot({
+  filtered() %>%
+    ggplot(aes(x = as.factor(treat), y = wvs_happiness)) +  
+    geom_point( position = "jitter") +
+    labs(y = "Wellbeing", x = "Treatment") 
+  #+   theme_wsj()
+})
+```
+
+
+### Social Consumption
+```{r}
+filtered_1 <- reactive({
+  df_plot %>% 
+    filter(treat %in% input$treatmentInput,
+           purecontrol %in% input$purecontrolInput,
+           gender %in% input$genderInput) 
+})
+renderPlot({
+  filtered_1() %>%
+    ggplot(aes(x = cons_social,
+              # y = ..prop..,
+               fill = as.factor(treat))) +
+    geom_density(alpha = 0.5) + 
+    #geom_bar(
+      #position = 'dodge', This is for the graphs to be completely separated 
+     # position = position_dodge(width = 0.7),
+      #col = 'black') +
+    #theme_wsj() +
+    labs(x = "$", y = "Density", fill = "Treatment")
+  
+  # ##
+# ggplot(aes(x = cons_food, y = ..count..,
+#                 fill = as.factor(treat))) +
+#   geom_histogram(position = "dodge", col = "black") +
+#   theme_wsj() + 
+#   labs(x = "$", y = "Density", fill = "Treatment")
+})
+
+renderPlot({
+  df %>% 
+    filter(purecontrol == 1 | treat ==1) %>%
+    group_by(female) %>%
+    #mutate(per = n()/nrow(df)) %>%
+    #ungroup() %>%
+    ggplot(aes(x = cons_social,
+               y = per,
+               fill = as.factor(treat))) +
+    geom_histogram(alpha = 0.5,
+                   position = "dodge",
+                   bins = 10
+                   ) + 
+    facet_wrap(.~female) +
+     labs(x = "$", y = "Percentage", fill = "Treatment") + 
+    scale_y_continuous(labels = function(x)paste0(x*100,"%"))
+})
+```
+
+### Food Consumption
+```{r}
+filtered_1 <- reactive({
+  df_plot %>% 
+  filter(treat %in% input$treatmentInput,
+         purecontrol %in% input$purecontrolInput,
+         gender %in% input$genderInput) 
+})
+renderPlot({
+filtered_1() %>%
+  ggplot(aes(x = cons_food, fill = as.factor(treat))) +
+  geom_density(alpha = 0.5) + 
+  labs(x = "$", y = "Density")
+})
+```
+
+Statistical Analysis
+==================
+
+Row {.tabset}
+-----------------------------------------------------------------------
+
+### KS Food Consumption
+
+```{r}
+renderPlot({
+  filtered_1() %>%
+    ggplot(aes(x = cons_food,
+               col = as.factor(treat))) +
+    stat_ecdf()+
+    labs(x = "$", y = "ECDF", fill = "Treatment")
+})
+```
+
+### KS social Consumption
+```{r}
+renderPlot({
+  df %>%
+    filter(purecontrol == 1 | treat ==1) %>%
+    ggplot(aes(x = cons_social,
+               col = as.factor(treat))) +
+    stat_ecdf() +
+    labs(x = "$", y = "ECDF", fill = "Treatment")
+})
+```
+
