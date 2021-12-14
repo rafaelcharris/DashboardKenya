@@ -450,42 +450,10 @@ df_ml %>%
        col = "Treatment",
        title = "Cumulative Distribution function for Social consumption") +
   facet_grid(gender~.)
-       #subtitle = paste0("p = ",
-       #                  round(ks.test(
-       #                    df_mi$cons_social[df_mi$treat == 1],
-       #                    df_mi$cons_social[df_mi$treat == 0 &
-       #                                        df_mi$purecontrol==1])$p.value,3)))
 ```
 
 
-```{r echo = FALSE}
-d <- list(
-  cons_food = standardize(df_ml$cons_food),
-  treat = ifelse(df_ml$treat ==1, 1, 2),
-  female = ifelse(df_ml$female == 1, 1, 2),
-  numkids = df_ml$children,
-  hhsize = df_ml$hh_size,
-  treatXfemale = df_ml$treatXfemale,
-  village = df_ml$village_id
-)
 
-m_cons_food <- ulam(
-  alist(
-    cons_food ~ normal(mu, sigma),
-    mu <- b1[treatXfemale] + tau*b2[village] +b3*numkids + b4*hhsize,
-    b1[treatXfemale] ~ normal(0, 1),
-    b2[village] ~ normal(0, 1),
-    b3 ~ normal(0, 1),
-    b4 ~ normal(0, 1),
-    tau ~ exponential(1),
-    sigma ~ exponential(1)
-  ), data = d, chain = 2, iter = 2000
-)
-```
-
-```{r, echo = FALSE}
-plot(precis(m_cons_food, depth = 2, pars = c("b1", "tau", "sigma")))
-```
 
 
 
