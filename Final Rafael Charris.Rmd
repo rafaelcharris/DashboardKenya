@@ -1,5 +1,5 @@
 ---
-title: 'Effect of UCT in Kenya: An RCT'
+title: 'The effect of UCT in Kenya: An RCT'
 author: "Rafael Charris"
 date: "11/22/2021"
 output:
@@ -16,7 +16,6 @@ library(haven)
 library(sf)
 library(dagitty)
 library(table1)
-library(plotly)
 library(leaflet)
 library(htmltools) # tools for the map
 library(lme4)
@@ -71,40 +70,38 @@ price_plot_summary <- price_plot %>%
 
 Unconditional cash transfers (UCT) is one kind of program used to fight poverty. Unlike the conditional  cash transfers programs, UCT do not require the recipient to fulfill some sort of obligation. The idea behind this is that imposing outside constrains in the recipients can be very costly for the recipients because each persons situation is different: taking their kids to school, or going to unemployment programs are not their priority. Giving people the money directly allows them to allocate these resources as they see fit.
 Besides, giving people  money directly can be cheaper because there are no monitoring nor enforcing costs.
-
+<!--
 For example, in Colombia there is the program Familias en Acción which gives money to families with the lowest income in the country conditional on they having their children in school.
+--->
 
 However, critics of this measures point out that there may be unintended consequences of giving money to everyone. For once, it would reduce the incentive to work. This would create a labor market shortage that would have an impact of prices: business would have to pay more to hire someone and would transfer this extra cost to consumers, rising the prices.
 This increase in prices or inflation would make the policy useless: yes, people would have more cash in their hands or money in their bank accounts but it would be less valuable. (REFERECES).
 
-The purpose of this paper is to explore the data from a field experiment conducted between 2011 and 2013 in different villages in west Kenya by the NGO **Give Directly**. The purpose of this NGO is to make unconditional cash transfers to poor households in developing countries. The evaluation of this program was conducted by a team of researchers from Princeton and Busara Center of Behavioral Economics led by Johannes Haushofer and Jeremy Shapiro.The experiment gave out money to different households with the purpose of understanding how this money would affect their economic and psychological situation. They also intended to tesk whether there would be any effects on prices in the villages.
+The purpose of this paper is to explore the data from a field experiment conducted between 2011 and 2013 in different villages in west Kenya by the NGO **Give Directly** (GD). The purpose of this NGO is to make unconditional cash transfers to poor households in developing countries. The evaluation of this program was conducted by a team of researchers from Princeton and Busara Center of Behavioral Economics led by Johannes Haushofer and Jeremy Shapiro.The experiment gave out money to different households with the purpose of understanding how this money would affect their economic and psychological situation. They also intended to tesk whether there would be any effects on prices in the villages.
 
 # Design
 
-The design has two levels of randomization and three treatments. First the team identified villages in Rarieda, in the westa part of the country, that had the highest proportion of thatched roofs. Once identified, the randomly choose 120 villages and within these villages, they choose 
+The design has two levels of randomization and three treatments. First the team identified villages in Rarieda, in the west part of the country, that had the highest proportion of thatched roofs. Once identified, they randomly choose 120 villages and within these villages, they choose certain households with the help of the village elderly.
+(This may have affected the randomization process).
 
-The first level of 
-Households were selected if they had thatched roof[^1]. They choose the household using a survey.
-[1 I don't know if this is a good criteria for deciding which household was the poorest]
-After identification, representatives of GD went to each elected household and told the recipient that they would received 404 USD total. They were informed also about the schedule of the transaction (lump-sum vs direct).
-They were given a SIM card and were asked to register to the service M-Pesa: a mobile banking service present in Kenya, Tanzania, Afganistan, Uganda, Rwanda and Tanzania.
+![Design](design.png)
 
-1. Selection criteria for villages: Highest proportion of thatched roofs.
-2. Monthly Transfer. Total: 25.200 KES (404 USD PPP)
 
-3. 9\% of the households choosen
+After identification, representatives of GD went to each elected household and told the recipient that they would received 404 USD total (25.200 KES ) .They were given a SIM card and were asked to register to the service M-Pesa: a mobile banking service present in Kenya, Tanzania, Afganistan, Uganda, Rwanda and Tanzania.
+The chosen villages had around 100 households each. Within each households, around 9\% of the households chosen per village.
+The minimum wage in 2012 in Kenya was 13.471 KES, so the total transfer during the duration of the program was twice the monthly minimum wage in the country.
+If the thatched roofs criteria for identifying low income households is successful, is likely that these households' income is below the average minimum wage
+
 <!--
-1. amount given
-2. How did they select the villages (120 villages with the highest proportion of tatched roofs)
 3. All elegible villages were identified with a census
 3. approx 19 percent of the households within each village where surveyed, and approx 9 percent of the households within a village got a transfer
 4. Population of villages ?
 5. amount of transfer 25.200 KES (404 USD PPP)
-13,471 KES was the minimum wage in 2012
+ 13,471 KES was the minimum wage in 2012
 1 usd = 62.4 KES
 -->
 
-Figure 1 shows the map of the Rarieda´s Map 
+Figure 1 shows the map of the Rarieda´s Map with the location of the villages that took part in the study.
 
 ```{r, fig.cap = "Map of treated and non treated villages", echo=FALSE, fig.cap=c(4,5), warning=FALSE, message=FALSE}
 pal <- colorNumeric(
@@ -130,11 +127,63 @@ The effects ( or lack of thereof) that i find here may be due to the scale of th
 
 2. Does receiving unconditional cash transfer increases spending ? 
 
-3. Does the effect of spending is different for male and female recepients?
+3. Does the effect of spending is different for male and female recipients?
 
 4. Does receiving UCT increase the prices in the villages that receive this money relative to those that did not received it?
 
 # Models
+
+## Social Consumption
+
+Social Consumption is a variable that measures the amount of money in KES on expenditure by every member of the household on ceremonies, weddings, funerals, dowry, village elders, and any other recreation (cinema tickets, music/CDs, books/magazines, etc.) in the past 12 months in KES. This measure was self-reported by the households, so is very prone to measurement error. Simply because memory is fragile or because of social desirability bias. People that receive the UCT could exaggerate the amount of money they dedicated to their kids, education or savings hopping that this "good" results would keep the program going.
+
+```{r, echo = FALSE, fig.dim = c(4,5), fig.cap = "DAG for question 1"}
+dag_q1 <- dagitty(
+  "dag{
+  Treatment ->  SocialConsumption
+  Gender -> SocialConsumption
+  NumKids -> SocialConsumption
+  NumKids -> HouseholdSize
+  HouseholdSize -> SocialConsumption
+  Education -> SocialConsumption
+  Education -> NumKids
+  NeighborTreated -> SocialConsumption
+  Treatment -> Income -> SocialConsumption
+  }"
+)
+plot(dag_q1)
+```
+
+Taking into account this caveats, a model that can be used to estimate the effect of the treatment on social consumption is the following:
+
+$$\text{Social Consumption} \sim \text{Normal}(\mu, \sigma)$$
+$$\mu \sim \beta_{1[treatXfemale]} + \beta_{2[village]} + \beta_{2}\text{Numkids} + \beta_{4}\text{HHSize}$$
+$$\beta_{1[treatXfemale]} \sim \text{Normal}(4000, 1000)$$
+$$\bar{\alpha} \sim \text{Log-Normal}(2000, 500)$$
+$$\sigma \sim \text{Exponential}(0.001)$$
+
+The model assumes that social consumption is distributed normally around certain $\mu$, and with certain standard deviation $\sigma$. Although consumption could be log normally distributed, where the distribution has a lower bound in zero and a very long tail to the right, I normalized the variable for easy of analysis.
+
+The mean is dependent on the treatment and the gender of the recipient to measure the interaction effect. In this case, $\beta_{1[treatXfemale]}$ is an index variable from 1 to 4 that represents each one of the possible combinations of treatment and gender of the recipient that shows in the table below:
+
+|$\beta_{1[treatXfemale]}$|  female | treat  |  N |
+|---|---|---|---|
+| 1 | 0 | 0 | 213 |
+| 2 | 0 | 1 | 100 |
+| 3 | 1 | 0 | 398 |
+| 4 | 1 | 1 | 238 |
+
+To estimate the effect of gender, I have to do contrasts between the coefficients
+
+
+```{r, eval = FALSE}
+#  female treat treatXfemale     n
+#   <dbl> <dbl>        <dbl> <int>
+#1      0     0            1   213
+#2      0     1            2   100
+#3      1     0            3   398
+#4      1     1            4   238
+```
 
 ## Happiness
 
@@ -145,8 +194,8 @@ The program collected data on the level of happiness of the participants. The in
 3 = Not very happy 
 4 = Not at all happy
 
-Given that the response variable is a ordered categorical variable, I conducted and ordered logit model, that should be able to estimate the probability of going from one level of happiness to another depending on whether the responded received the UCT.
-To understand the relationship between the variables, I plot 
+Given that the response variable is a ordered categorical variable, I conducted and ordered logit model, that should be able to estimate the probability of going from one level of happiness to another depending on whether the person received the UCT.
+To understand the relationship between the variables, I plot the DAG showing causal relationships between different factors and happiness.
 
 ```{r, echo = FALSE, fig.dim = c(4,5), fig.cap = "DAG for question 1"}
 dag_q2 <- dagitty(
@@ -170,7 +219,6 @@ plot(dag_q2)
 ```
 
 
-
 $$\text{Happiness} \sim \text{Ordered-logit}(\mu, \sigma)$$
 $$\mu \sim \alpha_{[treatXfemale]} + \beta_{1[village]}$$
 
@@ -180,44 +228,13 @@ $$\sigma \sim \text{Exponential}(0.001)$$
 $$\tau \sim \text{Exponential}(0.001)$$
 
 
+### Price 
 
+For identifying if there was a change in price I don't need to build a model. If randomization was successful, then there should not be any systematic differences between the treated and the non-treated villages: in both groups there should be big and small villages with different characteristics, so I can run a t-test to test the hypothesis of different means.
+However, in the Bayesian framework one can estimate the mean price for the treated villages with the mean price for the non-treated villages and get a distribution around each estimate that represents the uncertainty around the estimates.
+The model that estimates both of this means can be written as follows:
 
-## Social Consumption
-
-
-Social Consumption is a variable that measures 
-```{r, echo = FALSE, fig.dim = c(4,5), fig.cap = "DAG for question 1"}
-dag_q1 <- dagitty(
-  "dag{
-  Treatment ->  SocialConsumption
-  Gender -> SocialConsumption
-  NumKids -> SocialConsumption
-  NumKids -> HouseholdSize
-  HouseholdSize -> SocialConsumption
-  Education -> SocialConsumption
-  Education -> NumKids
-  NeighborTreated -> SocialConsumption
-  Treatment -> Income -> SocialConsumption
-  }"
-)
-plot(dag_q1)
-```
-
-
-$$\text{Consumption} \sim \text{Log-Normal}(\mu, \sigma)$$
-$$\mu \sim  \beta_{1[treat]} + \beta_{2[female]} + \beta_{3[treatXfemale]} + \beta_{4[village]}$$
-$$\beta_{1[treat]} \sim \text{Log-Normal}(4000, 1000)$$
-$$\beta_{2[female]} \sim \text{Log-Normal}(4000, 1000)$$
-$$\beta_{3[treatXfemale]} \sim \text{Log-Normal}(4000, 1000)$$
-$$\beta_{4[village]} \sim \text{Log-Normal}(\bar{\alpha}, \tau)$$
-$$\bar{\alpha} \sim \text{Log-Normal}(2000, 500)$$
-$$\sigma \sim \text{Exponential}(0.001)$$
-$$\tau \sim \text{Exponential}(0.001)$$
-
-
-
-
-```{r, echo = FALSE, fig.dim = c(4,5), fig.cap = "DAG for question 3"}
+```{r, echo = FALSE, fig.dim = c(4,5), fig.cap = "DAG for question 4"}
 dag_q3 <- dagitty(
   "dag{
   Transaction -> Prices
@@ -229,33 +246,36 @@ plot(dag_q3)
 ```
 
 $$\text{Prices} \sim \text{Normal}(\mu, \sigma)$$
-$$\mu \sim  \alpha_{[treat]}$$
-
+$$\mu =  \alpha_{[treat]}$$
+$$\alpha_{[treat]} \sim \text{Normal}(0, 5)$$
 $$\sigma \sim \text{Exponential}(1)$$
+where $\alpha_{[treat]}$ represents an index variable. In this case it takes two values, 1 or 2, which stands for treated village and non-treated village, respectively. This is 
 
-
-
-I will run two models to answer questions two and three. 
+I will run two models to answer questions two and three.
 The first model will estimate what 
 I want to know whether the extra money had an effect on the two categories of consumption measures: social and food consumption. The model should take into account that different villages may have different level of social and food consumption. To to this, I will run a random effects model (partially pooled in the Bayesian lingo).
 
-
-
-
 Secondly i want to know whether this extra income had an effect on psychological well-being, l
 
-```{r}
+```{r, eval = FALSE}
 lme4::lmer(data = df_ml, cons_social ~ as.factor(treatXfemale) +  (1|village))
 ```
 
 
 # Results
 
+## Descriptive Statistics
+```{r, echo = FALSE, results='asis'}
+table1(~ age+ as.factor(gender) + children + hh_size + cons_social + cons_food, data = df_foreing,
+       labels = c("Age", "Gender", "Chldren", "Household Size", "Social Consumption", "Food Consumption"))
+```
+
 ## Missing Values
 
+Before analyzing the data, I checked whether there were missing values.
 There are missing data in the `age`, `gender`, `education`, `wvs_happiness`, `hh_size`.
 
-In this section, I will see if this missing values are MAR or MCAR. 
+(Need to explain how to identify the missing values MCR or MCAR)
 
 ```{r}
 # Create a dummy for the missing value.
@@ -272,63 +292,22 @@ df_missing <- df_missing %>%
   mutate( household_id= as.character(household_id),
           latitude = as.character(latitude),
           longitude = as.character(longitude))
-
 m <- mice(df_missing)
 df_mi <- complete(m)
 ```
 
-
-## Food Insecurity
-
-```{r}
-df_fi <- df_mi %>%
-  mutate(female = ifelse(gender == 1, 1 , 0),
+```{r, echo = FALSE}
+data <- df_mi %>%
+  mutate(female = ifelse(gender == 2, 1 , 0),
          treatXfemale = treat + 2*female + 1)
-df_fi$village_id <- as.integer(as.factor(df_fi$village))
-
-d <- list(
-  food_insecurity_index = standardize(df_fi$food_insecurity_index),
-  purecontrol = ifelse(df_fi$purecontrol ==1, 1, 2),
-  spillover = ifelse(df_fi$treat ==1, 1, 2),
-  treatXfemale = df_fi$treatXfemale,
-  village = df_fi$village_id,
-  hh_size = df_fi$hh_size,
-  numkids = df_fi$children,
-  education = df_ml$education
-)
-
-m_fi <- ulam(
-  alist(
-    food_insecurity_index ~ normal(mu, sigma),
-    mu <- b_treatXfemale[treatXfemale] + b_village[village] + b_numkids*numkids + b_hhsize*hh_size,
-    b_treatXfemale[treatXfemale] ~ normal(0,3),
-    b_village[village] ~ normal(0, 1),
-    sigma ~ exponential(1),
-    b_numkids ~ normal(0, 1),
-    b_hhsize ~ normal(0, 1)
-  ), data = d, chain = 1, iter = 10000
-)
-#female treat treatXfemale     n
-#   <dbl> <dbl>        <dbl> <int>
-#1      0     0            1   183
-#2      0     1            2   222
-#3      1     0            3   111
-#4      1     1            4    96
-
-precis(m_fi, depth = 2)
-post <- extract.samples(m_fi)
+data$village_id <- as.integer(as.factor(data$village))
 ```
 
-
-
-## Consumption 
+## Social Consumption
 
 ```{r, echo= FALSE}
-df_ml <- df_mi %>%
-    filter(treat == 1 | purecontrol==1) %>%
-  mutate(female = ifelse(gender == 1, 1 , 0),
-         treatXfemale = treat + 2*female + 1)
-
+df_ml <- data %>%
+    filter(treat == 1 | purecontrol==1)
 df_ml$village_id <- as.integer(as.factor(df_ml$village))
 
 d <- list(
@@ -338,7 +317,9 @@ d <- list(
   treatXfemale = df_ml$treatXfemale,
   village = df_ml$village_id
 )
-
+########
+##### Test Models
+#######
 m_sc1 <- ulam(
   alist(
     cons_social ~ half_normal(mu, sigma),
@@ -348,8 +329,6 @@ m_sc1 <- ulam(
   ), data = list(cons_social = d$cons_social, treat = d$treat),
   chain = 1, iter = 10000
 )
-precis(m_sc1, depth = 2)
-
 m_sc2 <- ulam(
   alist(
     cons_social ~ dnorm(mu, sigma),
@@ -359,96 +338,71 @@ m_sc2 <- ulam(
     sigma ~ exponential(0.01)
   ), data = d, chain = 4, cores = 4, iter = 1000
 )
-precis(m_sc2, depth = 2)
+```
 
+```{r, echo = FALSE, results='hide'}
 m_sc3 <- ulam(
   alist(
     cons_social ~ normal(mu, sigma),
-    mu <- b2[treatXfemale] + tau*b3[village],
-    b2[treatXfemale] ~ normal(0, 1),
-    b3[village] ~ normal(0, 1),
+    mu <- b1[treatXfemale] + tau*b2[village],
+    b1[treatXfemale] ~ normal(0, 1),
+    b2[village] ~ normal(0, 1),
     tau ~ exponential(1),
     sigma ~ exponential(1)
   ), data = d, chain = 2, iter = 2000
 )
-
 #female treat treatXfemale     n
 #   <dbl> <dbl>        <dbl> <int>
 #1      0     0            1   183
 #2      0     1            2   222
 #3      1     0            3   111
 #4      1     1            4    96
+```
 
- precis(m_sc3, depth = 2, 
-       pars = c("b1", "b4", "b2", "a_bar", "tau", "sigma"))
+```{r, fig.cap="Estimates for the treatment effects and for the errors", fig.dim=c(4,3)}
+plot(precis(m_sc3, depth = 2, pars = c("b1","tau", "sigma")))
+```
+
+The regression of social consumption
+
+
+
+```{r, echo = FALSE}
+df_mi %>%
+  mutate(gender = ifelse(gender == 1, "Male", "Female")) %>%
+  filter(treat == 1 | purecontrol == 1) %>%
+  ggplot(aes(x = cons_social,
+             fill = as.factor(treat))) +
+  geom_density(alpha = 0.5) + 
+  labs(y = "Density", 
+       x = "KES",
+       title = "Effect of Receving a Transaction on Social Consumption",
+       fill = "Treatment") + 
+  facet_grid(gender~.)
 ```
 
 
-
-```{r, echo= FALSE}
-df_ml <- df %>%
-    filter(
-         treat == 1 | purecontrol==1) %>%
-  mutate(female = ifelse(gender == 1, 1 , 0),
-         treatXfemale = treat + 2*female + 1) %>%
-  group_by(village) %>%
-  rowid_to_column()
-
-d <- list(
-  cons_food = standardize(df_ml$cons_food),
-  treat = ifelse(df_ml$treat ==1, 1,2),
-  female = ifelse(df_ml$female == 1, 1, 2),
-  treatXfemale = df_ml$treatXfemale,
-  village = df_ml$rowid
-)
-
-m_sc1 <- ulam(
-  alist(
-    cons_food ~ half_normal(mu, sigma),
-    mu <- b1[treat],
-    b1[treat] ~ half_normal(0, 2),
-    sigma ~ exponential(1)
-  ), data = list(cons_food = d$cons_food, treat = d$treat),
-  chain = 1, iter = 10000
-)
-precis(m_sc1, depth = 2)
-
-m_sc2 <- ulam(
-  alist(
-    cons_food ~ dnorm(mu, sigma),
-    mu <- b1[treat] + b2[treatXfemale],
-    b1[treat] ~ normal(0,4),
-    b2[treatXfemale] ~ normal(0, 4),
-    sigma ~ exponential(1)
-  ), data = d, chain = 4, cores = 4, iter = 1000
-)
-precis(m_sc2, depth = 2)
-
-m_sc3 <- ulam(
-  alist(
-    cons_food ~ normal(mu, sigma),
-    mu <-  b2[treatXfemale] + b3[village],
-    b2[treatXfemale] ~ normal(0, 2),
-    b3[village] ~ normal(b_bar, tau),
-    b_bar ~ normal(0, 2),
-    tau ~ exponential(1),
-    sigma ~ exponential(1)
-  ), data = d, chain = 1, iter = 1000
-)
-#female treat treatXfemale     n
-#   <dbl> <dbl>        <dbl> <int>
-#1      0     0            1   183
-#2      0     1            2   222
-#3      1     0            3   111
-#4      1     1            4    96
-
- precis(m_sc3, depth = 2, 
-       pars = c("b1", "b4", "b2", "a_bar", "tau", "sigma"))
+```{r, echo = FALSE}
+df_mi %>%
+  filter(treat == 1 | purecontrol == 1) %>%
+  ggplot(aes(x = cons_social,
+             col = as.factor(treat))) +
+  stat_ecdf() +
+  labs(x = "KES", y = "ECDF", 
+       col = "Treatment",
+       title = "Cumulative Distribution function for Social consumption") +
+  facet_grid(gender~.)
+       #subtitle = paste0("p = ",
+       #                  round(ks.test(
+       #                    df_mi$cons_social[df_mi$treat == 1],
+       #                    df_mi$cons_social[df_mi$treat == 0 &
+       #                                        df_mi$purecontrol==1])$p.value,3)))
 ```
 
 
 
 ## Happiness (Ordinal regression)
+
 ```{r, echo = FALSE}
 d1 <- df_mi %>%
   mutate(wvs_happiness = 5 - as.numeric(wvs_happiness),
@@ -464,17 +418,14 @@ d <- list(
 m <- ulam(
   alist(
     happ ~ dordlogit(phi, cutpoints),
-    phi <- b1[treat] + b3[gender],
-    #+ b4[village],
+    phi <- b1[treat] + b2[gender],
     cutpoints ~ dnorm(0, 1),
     b1[treat]  ~ dnorm(0, 1),
-    b3[gender] ~ dnorm(0, 1),
-    #b4[village] ~ dnorm(a_bar, sigma), # The effect of village is different 
+    b2[gender] ~ dnorm(0, 1),
     a_bar ~ dnorm(0, 2), # I'm estimating the grandmean
     sigma ~ exponential(1)
   ), data = d, chains=1
 )
-
 post <- extract.samples(m)
 precis(post, depth = 2)
 ```
@@ -482,15 +433,11 @@ precis(post, depth = 2)
 
 ### Price Change
 
-```{r, echo = FALSE}
-#CONTROL FOR THE AMOUNT THAT THEY RECEIVED! NOT ALL VILLAGES GOT THE SAME MONEY 
-# PLOT THE DATA BY GROUPS TO SEE IF i HAVE TO CARE ABOUT THE LEVELS OF DATA.!
-
+```{r, echo = FALSE, fig.cap=""}
 d2 <- list(
 price = price_plot$v_price_index,
 treat = ifelse(price_plot$transaction == 1, 1, 2),
 )
-
 m_price <- ulam(
   alist(
     price ~ normal(mu, sigma),
@@ -500,62 +447,26 @@ m_price <- ulam(
   ), data = d2, chains=2, iter = 2000
 )
 post_m_price <- extract.samples(m_price)
-post_m_price$dif_price <- post_m_price$b1[,1] - post_m_price$b1[,2]
-precis(post_m_price, depth = 2)
-
-
-# Get predictions
-predicted_values <- NULL
-p <- ggplot()
-
-for (try in 1:100){
-  temp_df <- post_m_price %>%
-    as.data.frame()
-  temp_df <- temp_df %>%
-    mutate(
-      t_1_pred = rnorm(1, b1.1, sigma),
-           t_0_pred = rnorm(1, b1.2, sigma)) %>%
-    pivot_longer(cols = contains('pr'),
-                 values_to = "pred",
-                 names_to = "model") %>%
-    mutate(.simulation = try)
-  predicted_values <- rbind(predicted_values, temp_df)
-  temp_df = NULL
-  p <- p +
-    geom_density(data = temp_df, aes(x = pred, fill = model))
-}
-
-pred_sim <- predicted_values %>% 
-  group_by(.simulation, model) %>%
-  summarise(mean_effect = mean(pred))
-
-predicted_points <- pred_sim %>%
-  group_by(model) %>%
-  summarise(mean = mean(mean_effect),
-           sd = sdf(mean_effect))
-  
-
-ggplot(predicted_values, aes(x = pred, group = .simulation)) +
-  geom_histogram()
-
-
-
-ggplot() +
-  geom_function(fun = dnorm, 
-                args = list(mean = predicted_points$mean[1],
-                            sd = predicted_points$sd[1]), 
-                col = "red") +
-  geom_function(fun = dnorm, 
-                args = list(mean = predicted_points$mean[2],
-                                         sd = predicted_points$sd[2]))
+post_m_price$diff_price <- post_m_price$b1[,2] - post_m_price$b1[,1]
 ```
 
-
-```{r, echo = FALSE}
-t.test(price_plot$v_price_index ~ price_plot$transaction)
+```{r, echo = FALSE, fig.cap="Distribution of differences between the beta estimates from "}
+post_m_price %>%
+  as.data.frame() %>%
+ggplot(aes(x = diff_price)) +
+  geom_density() + 
+  geom_vline(xintercept = price_plot_summary["mean_price"][[2,1]] - price_plot_summary["mean_price"][[1,1]]) + 
+  labs(x = "Difference in Prices Indices")
 ```
 
-```{r, fig.cap="Boxplot of the distribution of prices", fig.dim=c(3,4)}
+```{r t_test, echo = FALSE}
+rs <-t.test(price_plot$v_price_index ~ price_plot$transaction)
+```
+
+t test `r paste0("t= ",round(rs$t), " p = ", round(rs$p.value))` 
+
+
+```{r, echo =FALSE, fig.cap="Boxplot of the distribution of prices", fig.dim=c(3,4)}
 p1 <- ggplot(price_plot, 
        aes(x = as.factor(purecontrol), 
            y = v_price_index
@@ -581,7 +492,7 @@ p1
 
 Both treatments have the same number of villages (non treated 62 and treated 60). However, there are some outliers according to the $1.5*IQR$ criteria as the box plot shows.
 When I remove these outliers, both groups even more similar as shown by Figure XXX, and there are still not significant differences. 
-The lack of identification could be due to two things: first, there no effect of these transactions on the price index. The amount was not enough to influence the prices overall. Secondly, there are hidden variables that prevent identification. For example, I don't have information on the population of the villages. Even if they on average have 100 households, the outliers can be villages with small populations where the price was affected because the transaction was big relative to population. I don't have enough information to evaluate this hypothesis. 
+The lack of identification could be due to two things: first, there no effect of these transactions on the price index. The amount was not enough to influence the prices overall. Secondly, there are hidden variables that prevent identification. For example, I don't have information on the population of the villages. On average have 100 households, but I don't know the distribution of the villages' populations. The outliers can be villages with small populations where the price was affected because the transaction was big relative to population. I don't have enough information to evaluate this hypothesis. 
 Finally, I cannot conclude that absence of evidence is evidence of absence: maybe the effect exists but there was not enough power to identify it because the data is very noisy, the measure was poorly constructed, or the effect size is very small. However, I can asses that, taking these limitations into account, there is no evidence that there was a change in prices due to the unconditional cash transfer program.
 
 ```{r, echo = FALSE}
@@ -618,7 +529,7 @@ ggplot(price_plot_noutliers,
   labs(y = "Price Index", x = "Treated Villages")
 ```
 
-# Results
+
 
 ```{r, echo=FALSe}
 # Happines
@@ -627,6 +538,8 @@ df %>%
 ggplot(aes(x = as.factor(treat), y = wvs_happiness)) +  
   geom_point( position = "jitter") 
 ```
+
+
 ```{r}
 #Life satisfaction
 df %>% 
@@ -637,15 +550,7 @@ ggplot(aes(x = as.factor(treat), y = wvs_life_sat)) +
                geom = "point")
 ```
 
-```{r}
-# Social consumption
-df %>% 
-  filter(treat == 0 && purecontrol == 0) %>%
-ggplot(aes(x = as.factor(treat), y = cons_social)) +  
-  #geom_point( position = "jitter") 
-  stat_summary(fun = mean,
-               geom = "point")
-```
+
 # Price change? 
 
 ```{r}
@@ -681,41 +586,11 @@ ggplot(aes(x = as.factor(treat), y = cons_social)) +
                geom = "point")
 ```
 
-
-
-```{r PriceIndex, fig.cap="Effect of the transfer on the price", fig.dim=c(4,5), echo = FALSE}
-price_plot <- df_merged %>% 
-  distinct(village, .keep_all = TRUE) %>%
-  select(village, sublocation, longitude, latitude, v_price_index, purecontrol)
-
-price_plot_summary <- price_plot %>%
-  group_by(purecontrol) %>%
-  summarise(mean_price = mean(v_price_index),
-            sd_price = sd(v_price_index))
-
-p <- ggplot(price_plot, 
-       aes(x = as.factor(purecontrol), y = v_price_index)) +
-    geom_point(position = "jitter",
-             aes(text=village)) + 
-  stat_summary(fun = mean,
-             col = "red",
-             geom = "point") +
-  theme_minimal() + 
-  labs(y = "Price Index", x = "Pure Control")
-
-ggplotly(p, tooltip = "text")
-```
-
-
-
-# Limitations 
+## Limitations 
 
 One very important question that was not considered in the design of the paper and form which data is not available, is the effect of the transfers on the labor market. One of the criticisms to UCT, and UBI is that it will make people not go to work as their incentives will be 
 
 # References
-```{r}
-table1(~ age+ as.factor(gender) +  as.factor(education), data = df_foreing)
-```
 
 
 
