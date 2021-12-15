@@ -1,9 +1,10 @@
 ---
-title: 'The effect of UCT in Kenya: An RCT'
+title: 'The Effect of UCT in western Kenya: A reanalsysis of a RCT'
 author: "Rafael Charris"
 date: "11/22/2021"
 header-includes:
    - \usepackage[utf8]{inputenc}
+   - \usepackage{setspace}\setstretch{1.5}
 output:
   pdf_document: 
   html_document:
@@ -22,10 +23,11 @@ library(dagitty)
 library(table1)
 library(leaflet)
 library(htmltools) # tools for the map
-library(lme4)
 library(mice)
 library(ggpubr)
 library(naniar)
+library(kableExtra)
+library(latex2exp)
 
 theme_set(theme_minimal())
 knitr::opts_chunk$set(message = FALSE, warning = FALSE)
@@ -81,16 +83,16 @@ For example, in Colombia there is the program Familias en Acción which gives mo
 --->
 
 However, critics of this measures point out that there may be unintended consequences of giving money to everyone. For once, it would reduce the incentive to work. This would create a labor market shortage that would have an impact of prices: business would have to pay more to hire someone and would transfer this extra cost to consumers, rising the prices.
-This increase in prices or inflation would make the policy useless: yes, people would have more cash in their hands or money in their bank accounts but it would be less valuable (REFERECES).
+This increase in prices or inflation would make the policy useless: yes, people would have more cash in their hands or money in their bank accounts but it would be less valuable.
 
 The purpose of this paper is to explore the data from a field experiment conducted between 2011 and 2013 in different villages in west Kenya by the NGO **Give Directly** (GD). The purpose of this NGO is to make unconditional cash transfers to poor households in developing countries. The evaluation of this program was conducted by a team of researchers from Princeton and Busara Center of Behavioral Economics led by Johannes Haushofer and Jeremy Shapiro.The experiment gave out money to different households with the purpose of understanding how this money would affect their economic and psychological situation. They also intended to tesk whether there would be any effects on prices in the villages.
 
 # Design
 
-The design has two levels of randomization and three treatments. First the team identified villages in Rarieda, in the west part of the country, that had the highest proportion of thatched roofs. Once identified, they randomly choose 120 villages and within these villages, they choose certain households with the help of the village elderly.
+The design has two levels of randomization and three treatments. First the team identified villages in Rarieda, in the west part of the country, that had the highest proportion of thatched roofs. Once identified, they randomly choose 120 villages and within these villages, they choose certain households with the help of the village elderly.Figure 1 illustrates this randomization process.ß
 (This may have affected the randomization process).
 
-```{r echo=FALSE, out.width='50%', fig.cap="Two level randomization",fig.align='center'}
+```{r echo=FALSE, out.width='65%', fig.cap="Two level randomization",fig.align='center'}
 knitr::include_graphics('/Volumes/GoogleDrive-108720290059105288703/My Drive/Fall 2021/614/Final Project/Final/design.png')
 ```
 
@@ -100,7 +102,7 @@ The chosen villages had around 100 households each. Within each households, arou
 The minimum wage in 2012 in Kenya was 13.471 KES, so the total transfer during the duration of the program was twice the monthly minimum wage in the country.
 If the thatched roofs criteria for identifying low income households is successful, is likely that these households' income is below the average minimum wage.
 
-Figure 1 shows the map of the Rarieda´s Map with the location of the villages that took part in the study.
+Figure 2 shows the map of the Rarieda´s Map with the location of the villages that took part in the study. Villages where no one received the UCT, but that were eligible for the study and were used as pure controls are shown in green. Villages in which someone received the UCT, are shown in red.
 
 ```{r, fig.cap = "Map of treated and non treated villages", echo=FALSE, fig.cap=c(3,4), warning=FALSE, message=FALSE, out.width = '75%',fig.align='center'}
 pal <- colorNumeric(
@@ -121,9 +123,12 @@ The effects (or lack of thereof) that i find here may be due to the scale of thi
 
 ## Research Questions:
 
-1. Does receiving unconditional cash transfer increases psychological well being relative to the control group?
+Based on the design of the study, the variables available, and my own interests, I explore these questions:
 
-2. Does receiving unconditional cash transfer increases spending ? 
+
+1. Does receiving unconditional cash transfer increases spending on social activities? 
+
+2. Does receiving unconditional cash transfer increases spending on food?
 
 3. Does the effect of spending is different for male and female recipients?
 
@@ -131,52 +136,71 @@ The effects (or lack of thereof) that i find here may be due to the scale of thi
 
 # Models
 
-## Social Consumption
+## 1. Consumption
 
-Social Consumption is a variable that measures the amount of money in KES on expenditure by every member of the household on ceremonies, weddings, funerals, dowry, village elders, and any other recreation (cinema tickets, music/CDs, books/magazines, etc.) in the past 12 months in KES. This measure was self-reported by the households, so is very prone to measurement error. Simply because memory is fragile or because of social desirability bias. People that receive the UCT could exaggerate the amount of money they dedicated to their kids, education or savings hopping that this "good" results would keep the program going.
+### Social Consumption
+In this study I will consider two measures of consumption: social and food consumption.
+Even if both of these measures are different, they both have a similar empirical distribution: with a very long right tail. Because of this, I will model both similarly.
 
-```{r, echo = FALSE, fig.dim = c(3,4), fig.cap = "DAG for question 1"}
-dag_q1 <- dagitty(
+Social Consumption is a variable that measures the amount of money in Kenyan shillings (KES) on expenditure by every member of the household on ceremonies, weddings, funerals, dowry, village elders, and any other recreation (cinema tickets, music/CDs, books/magazines, etc.) in the past 12 months. This measure was self-reported by the households, so is very prone to measurement error. Simply because memory is fragile or because of social desirability bias. People that receive the UCT could exaggerate the amount of money they dedicated to their kids, education or savings hopping that this "good" results would keep the program going.
+
+### Food Consumption
+
+On the other hand, Food Consumption is a variable that measures the amount of money in Kenyan shillings (KES) on the following categories: Food own production, Food bought, Meat & fish, Fruit & vegetables, and Other foods in the past 12 months. This measure was also self-reported by the households, so is prone to measurement error. 
+
+The Directed Acyclic Graph (DAG) shown in figure 3 shows the possible causal relationships between the variables available and my behavior of interest. This DAG helps researchers to have a causal model in mind before running regressions and helps to understand whether one has to control for certain variables or not. In this case, given that the treatment was randomly assigned to the households, I don't need to control for any of the other variables because there are no backdoor paths, i.e variables that affect both treatment and Consumption.
+
+```{r, echo = FALSE, fig.dim = c(4,4), fig.cap = "DAG for question 1, 2, and 3"}
+dag_q2 <- dagitty(
   "dag{
-  Treatment ->  SocialConsumption
-  Gender -> SocialConsumption
-  NumKids -> SocialConsumption
+  Treatment ->  Consumption
+  Gender -> Consumption
+  NumKids -> Consumption
   NumKids -> HouseholdSize
-  HouseholdSize -> SocialConsumption
-  Education -> SocialConsumption
+  HouseholdSize -> Consumption
+  Education -> Consumption
   Education -> NumKids
-  NeighborTreated -> SocialConsumption
-  Treatment -> Income -> SocialConsumption
+  NeighborTreated -> Consumption
+  Treatment -> Income -> Consumption
   }"
 )
-plot(dag_q1)
+plot(dag_q2)
 ```
 
-Taking into account this caveats, a model that can be used to estimate the effect of the treatment on social consumption is the following:
+### Hierarchical Model 
 
-$$\text{Social Consumption}_{stnd} \sim \text{Normal}(\mu, \sigma)$$
-$$\mu \sim \beta_{1[treatXfemale]} + \beta_{2[village]}*\tau + \beta_{3}\text{Numkids} + \beta_{4}\text{HHSize}$$
-$$\beta_{1[treatXfemale]} \sim \text{Normal}(0, 2)$$
+A model that can be used to estimate the effect of the treatment on consumption is the following hierarchical model with random intercepts at the village level:
+
+$$\text{log(Consumption)} \sim \text{Normal}(\mu, \sigma)$$
+$$\mu \sim \alpha + \beta_{1}treatXfemale + \beta_{2}treat + \beta_{3}female + \beta_{4[village]}*\tau + \beta_{5}\text{Numkids}_{std} + \beta_{6}\text{HHSize}_{std}$$
+$$\alpha \sim \text{Normal}(5,2)$$
+$$\beta_{1}treatXfemale \sim \text{Normal}(0, 2)$$
+$$\beta_{2}treat \sim \text{Normal}(0, 2)$$
+$$\beta_{3}female \sim \text{Normal}(0, 2)$$
+$$\beta_{4[village]} \sim \text{Normal}(0, 1)$$
+$$\beta_{5} \sim \text{Normal}(0, 1)$$
+$$\beta_{6} \sim \text{Normal}(0, 1)$$
 $$\tau \sim \text{Exponential}(1) $$
 $$\sigma \sim \text{Exponential}(1)$$
 
-This is a multilevel model because it assumes that each village has a different intercept. The formulation is different from the most traditional but is equivalent to assuming that the great mean $\bar{alpha}$ is 
+Due to the shape of the distribution is easier to take the log of the consumption, and after the model is fitted take the exponential of the estimates. The variables for number of kids, and household size were standardized to ease the interpretation of the estimates. The model assumes that the natural logarithm of social consumption is distributed normally around certain $\mu$, and with certain standard deviation $\sigma$. 
+$\alpha$ represents the mean level of consumption when the responder is female, was not treated, and has the average number of kids, and the average household size. $treat$, $female$, and $femaleXtreat$ are all dummy variables, that are one when the person is treated, the person is female, and when both of these are 1, respectively. Therefore, the values of the $\beta_1$, $\beta_2$, $\beta_3$ are interpreted as deviations from the mean $\alpha$ when each of the dummy variables values is equal to 1.
 
-The model assumes that social consumption is distributed normally around certain $\mu$, and with certain standard deviation $\sigma$. Although consumption could be log normally distributed, where the distribution has a lower bound in zero and a very long tail to the right, I normalized the variable for easy of analysis.
+This is a multilevel model because it assumes that each village has a different intercept. The formulation is different from the canonical one, but it is equivalent to assuming that there is a mean $alpha$ from which all the villages deviate by certain standard deviations. Because the prior for the villages is centered around zero, and with a standard deviation of 1, the estimates for each village can be interpreted as z-scores (standardized differences from the mean). $\tau$ represents the variation between villages and its job is to allow the model to estimate the actual deviation of the villages. Because the prior assumes is 1, the model multiplies this value by $\tau$ to get an estimate of the variation.
 
-The mean is dependent on the treatment and the gender of the recipient to measure the interaction effect. In this case, $\beta_{1[treatXfemale]}$ is an index variable from 1 to 4 that represents each one of the possible combinations of treatment and gender of the recipient that shows in the table below:
+To get the treatment effect, I need a contrast between all the treated vs all the non-treated which is defined as follows:
 
-|$\beta_{1[treatXfemale]}$|  female | treat  |  N |
-|---|---|---|---|
-| 1 | 0 | 0 | 213 |
-| 2 | 0 | 1 | 100 |
-| 3 | 1 | 0 | 398 |
-| 4 | 1 | 1 | 238 |
+$$E[TE] = \frac{(\alpha + \beta_{1} + 2\beta_{2} + \beta_{3}) - (\alpha + \beta_{3})}{2} = \frac{\beta_{1} + 2\beta_{2}}{2}$$
 
-To estimate the effect of gender, I have to do contrasts between the coefficients $\beta_{1}$, and$\beta_{2}$. To get the treatment effect, I need to do a contrast between coefficients $\beta_{2}$, and $\beta_{4}$
+if $TE$ is higher than zero it means that the treatment increased consumption. If $TE$ is negative, it means that the participants in the control condition had a lower  
 
+To study gender effects, I need the effect on women minus the effect of men:
 
-### Price 
+$$E[GE] =  \frac{(2\alpha + 2\beta_{3} + \beta_{1})  -  (2\alpha + \beta_{2})}{2} = \frac{2\beta_{3} + \beta_{1} - \beta_{2}}{2}$$
+If this is positive, it means that women spent more than men. on the other hand, if the value is negative, it means that men spent more than women.
+Finally, to get the interaction effect, I just need the value of $\beta_{1}$ which is how much effect does the treatment affect women.
+
+## 2. Price 
 
 For identifying if there was a change in price I don't need to build a model. If randomization was successful, then there should not be any systematic differences between the treated and the non-treated villages: in both groups there should be big and small villages with different characteristics, so I can run a t-test to test the hypothesis of different means.
 However, in the Bayesian framework one can estimate the mean price for the treated villages with the mean price for the non-treated villages and get a distribution around each estimate that represents the uncertainty around the estimates.
@@ -198,17 +222,7 @@ $$\mu = \alpha_{[treat]}$$
 $$\alpha_{[treat]} \sim \text{Normal}(0, 5)$$
 $$\sigma \sim \text{Exponential}(1)$$
 
-where $\alpha_{[treat]}$ represents an index variable. In this case it takes two values, 1 or 2, which stands for treated village and non-treated village, respectively. The result will have three estimates: $\alpha_{[1]}$ that represents the mean price of the treated villages, $\alpha_{[2]}$ that represents the mean price of the non-treated villages, and $\sigma$ which represents the variation around the 
-
-I will run two models to answer questions two and three.
-The first model will estimate what 
-I want to know whether the extra money had an effect on the two categories of consumption measures: social and food consumption. The model should take into account that different villages may have different level of social and food consumption. To to this, I will run a random effects model (partially pooled in the Bayesian lingo).
-
-Secondly i want to know whether this extra income had an effect on psychological well-being, l
-
-```{r, eval = FALSE, echo = FALSE}
-lme4::lmer(data = df_ml, cons_social ~ as.factor(treatXfemale) +  (1|village))
-```
+where $\alpha_{[treat]}$ represents an index variable. In this case it takes two values, 1 or 2, which stands for treated village and non-treated village, respectively. The result will have three estimates: $\alpha_{[1]}$ that represents the mean price of the treated villages, $\alpha_{[2]}$ that represents the mean price of the non-treated villages, and $\sigma$ which represents the variation in the estimate of the price.
 
 # Results
 
@@ -221,14 +235,15 @@ label(df_foreing$hh_size) <- "Household Size"
 label(df_foreing$cons_social) <-"Social Consumption"
 label(df_foreing$cons_food) <- "Food Consumption"
     
-table1(~ age+ as.factor(gender) + children + hh_size + cons_social + cons_food,data = df_foreing, topclass="Rtable1-zebra")
+table1(~ age+ as.factor(gender) + children + hh_size + cons_social + cons_food,data = df_foreing, topclass="Rtable1-center")
 ```
 
 ## Missing Values
 
 The missingness plot shows that there are missing values in the following variables: `age`, `gender`, `education`, `wvs_happiness`,`wvs_life_sat`, and `hh_size`.
-The plot indicates that the missing values are related: the same rows have missing values for these variables. However, the measures of happiness and life satisfaction have more missing values than the rest of the variables. furthermore, the missing values correspond to the same households.
-```{r, echo = FALSE, fig.cap = "Missingness Plot", fig.dim=c(4,3)}
+Figure 3 indicates that the missing values are related: the same rows have missing values for these variables. However, the measures of happiness and life satisfaction have more missing values than the rest of the variables. furthermore, the missing values correspond to the same households.
+
+```{r, echo = FALSE, fig.cap = "Missingness Plot", fig.dim=c(5,5), fig.align='center'}
 vis_miss(df)
 ```
 
@@ -241,7 +256,7 @@ l_results <-df %>%
 
 Overall, there seems to be more missing values in the happiness and life satisfaction variables among the treated households (16.9%) vs the non treated households (14.9%), relative to the number of households on each treatment. The other missing values seem to be distributed equally among villages, which could be the case if there was a systematic problem that made it very hard to survey certain places more than others.
 
-A little's test shows that the data is not MCAR (`r paste0("Chi = ", round(l_results$statistic)`, p < 0.01). Therefore, I conducted multiple imputation in case the data was NMAR.
+A little's test shows that the data is not MCAR (`r paste0("Chi = ", round(l_results$statistic))`, p < 0.01). Therefore, I conducted multiple imputation in case the data was NMAR.
 
 ```{r, echo = FALSE, warning=FALSE, results='hide'}
 df_missing <- haven::zap_labels(df)
@@ -265,48 +280,45 @@ data$village_id <- as.integer(as.factor(data$village))
 
 For this analysis I compare the households that received the transaction against households that did not receive the transaction in villages that were not treated. That is, villages were no one received the UCT. This comparison provides the perfect contractual to measure the pure effect of the treatment. If I compare treated households and non treated households within treated villages, there is the risk of interaction or spillover effects that would make identification hard.
 
-As the graph shows, social consumption seems to be roughly similar between treatment and control, but different between genders. There is more mass in the the lowest part of the distribution for females.
+As Figure 4 shows, social consumption seems to be roughly similar between treatment and control, but different between genders. There is more mass in the the lowest part of the distribution for females, indicating that the female population is concentrated around smaller amounts of consumption. On the other hand, men are more distributed along the KES population. 
+
 For men, there seems to be a slight shift from lower to higher values of social consumption. 
-The empirical cumulative distribution is shown in Figure XX. It shows that these curves are very close to each other. A Kolmogorov-Smirnoff test shows that these curves are not statistically different both for the female recipients ($p = 0.754$) and for the male recipients ($p = 0.3833$).
+The empirical cumulative distribution is shown in Figure 5. It shows that these curves are very close to each other. A Kolmogorov-Smirnoff test shows that these curves are not statistically different both for the female recipients ($p = 0.754$) and for the male recipients ($p = 0.3833$).
 
 
-```{r, echo = FALSE, fig.dim = c(8,5), fig.cap=" Distribution of amount spend in social consumption in the past 12 months"}
+```{r, echo = FALSE, fig.dim = c(5,4), fig.cap=" Distribution of amount spend in social consumption in the past 12 months"}
 data %>%
-  mutate(female = ifelse(female == 1, "Female", "Male")) %>%
   filter(treat == 1 | purecontrol == 1) %>%
+    mutate(female = ifelse(female == 1, "Female", "Male"),
+            treat =ifelse(treat ==1, "Yes", "No")) %>%
   ggplot(aes(x = cons_social,
              fill = as.factor(treat))) +
   geom_density(alpha = 0.5) + 
   labs(y = "Density", 
        x = "KES",
        title = "Effect of Receving a Transaction on Social Consumption",
-       fill = "Treatment") + 
+      fill = "UCT Recipient",) + 
   facet_grid(female~.)
 ```
 
-```{r, echo = FALSE, fig.cap=c(5,5), fig.cap="Empirical Cumulative distribution for those that "}
+```{r, echo = FALSE, fig.cap=c(8,5), fig.cap="Empirical Cumulative distribution for those that "}
 data %>%
-  mutate(female = ifelse(female == 1, "Female", "Male")) %>%
   filter(treat == 1 | purecontrol == 1) %>%
+    mutate(female = ifelse(female == 1, "Female", "Male"),
+             treat =ifelse(treat ==1, "Yes", "No")) %>%
   ggplot(aes(x = cons_social,
              col = as.factor(treat))) +
   stat_ecdf() +
   labs(x = "KES", y = "ECDF", 
-       col = "Treatment",
+       col = "UCT Recipient",
        title = "Cumulative Distribution function for Social consumption") +
   facet_grid(female~.)
-       #subtitle = paste0("p = ",
-       #                  round(ks.test(
-       #                    df_mi$cons_social[df_mi$treat == 1],
-       #                    df_mi$cons_social[df_mi$treat == 0 &
-       #                                        df_mi$purecontrol==1])$p.value,3)))
 ```
 
 ```{r, echo = FALSE, results='hide'}
 ks_female1 = data%>% filter(female == 1, treat ==1 )
 ks_female2 = data%>% filter(female == 1, treat == 0 )
 ks.test(ks_female1$cons_social, ks_female2$cons_social)
-
 ks_male1 = data%>% filter(female == 0, treat ==1 )
 ks_male2 = data%>% filter(female == 0, treat == 0 )
 ks.test(ks_male1$cons_social, ks_male2$cons_social)
@@ -319,12 +331,12 @@ df_ml$village_id <- as.integer(as.factor(df_ml$village))
 
 d <- list(
   cons_social = log(df_ml$cons_social + 1),
-  treat = ifelse(df_ml$treat ==1, 1, 2),
-  female = ifelse(df_ml$female == 1, 1, 2),
-  numkids = df_ml$children,
-  hhsize = df_ml$hh_size,
+  treat = df_ml$treat,
+  female = df_ml$female,
+  numkids = standardize(df_ml$children),
+  hhsize = standardize(df_ml$hh_size),
   treat_female = df_ml$treat*df_ml$female,
-  treatXfemale = df_ml$treatXfemale,
+  #treatXfemale = df_ml$treatXfemale,
   village = df_ml$village_id
 )
 ```
@@ -333,133 +345,210 @@ d <- list(
 m_cons_social <- ulam(
   alist(
     cons_social ~ normal(mu, sigma),
-    mu <- b1[treatXfemale] + a+ tau*b2[village] + b3*numkids + b4*hhsize,
+    mu <- a + b1*treat_female + b2*treat + b3*female + tau*b4[village] + b5*numkids + b6*hhsize,
     a ~ normal(5,2),
-    b1[treatXfemale] ~ normal(5, 2),
-    b2[village] ~ normal(5, 2),
-    b3 ~ normal(0, 1),
-    b4 ~ normal(0, 1),
+    b1 ~ normal(0, 2),
+    b2 ~ normal(0, 2),
+    b3 ~ normal(0, 2),
+    b4[village] ~ normal(0, 1),
+    b5 ~ normal(0, 1),
+    b6 ~ normal(0, 1),
     tau ~ exponential(1),
     sigma ~ exponential(1)
-  ), data = d, chain = 2, iter = 2000
-)
-
-d <- list(
-  cons_social = log(df_ml$cons_social + 1),
-  treat = df_ml$treat,
-  female = df_ml$female,
-  numkids = df_ml$children,
-  hhsize = df_ml$hh_size,
-  treat_female = df_ml$treat*df_ml$female,
-  treatXfemale = df_ml$treatXfemale,
-  village = df_ml$village_id
-)
-
-m_cons_social <- ulam(
-  alist(
-    cons_social ~ normal(mu, sigma),
-    mu <- b1*treat_female + b5*treat + b6*female + a+ tau*b2[village] + b3*numkids + b4*hhsize,
-    a ~ normal(5,2),
-    b1 ~ normal(5, 2),
-    b2[village] ~ normal(5, 2),
-    b3 ~ normal(2, 1),
-    b4 ~ normal(2, 1),
-    b5 ~ normal(6,3),
-    b6 ~ normal(5,2),
-    tau ~ exponential(1),
-    sigma ~ exponential(1)
-  ), data = d, chain = 2, iter = 2000
+  ), data = d, chain = 3, iter = 3000
 )
 ```
 
-```{r, fig.cap="Estimates for the treatment effects and for the errors", fig.dim=c(4,3), echo = FALSE}
-plot(precis(m_cons_social, depth = 2, pars = c("b1","tau", "sigma")))
+```{r, echo = FALSE, results='asis'}
+post <- extract.samples(m_cons_social)
+post$te <- 1/2*(2*post$b2 + post$b1)
+post$ge <- (2*post$b3 + post$b1 - post$b2)/2
+cons_table <- precis(post) %>% 
+  as_tibble() %>% 
+  select(1:4)
+
+cons_table$id <- c("Alpha", "B1 (femaleXtreat)", "B2 (treat)", "B3 (female)", "b5", "b6", "tau", "sigma" ,"Treatment Effect", "Gender Effect")
+
+cons_table %>%
+  filter(id != "b5", id != "b6") %>%
+  select(id, mean, sd,  `5.5%`,  `94.5%`) %>%
+  mutate(across(.cols = is.numeric, round, 2),
+         #across(.cols = is.numeric, exp)
+         ) %>%
+  kable( "latex",
+         booktabs = T,
+         caption = "Estimated parameters for the social consumption model",
+         col.names = c("Parameter", "Mean", "SD", "5.5%", "94.5%")) %>%
+  kable_styling(position = "center",latex_options = "striped",full_width = T)
 ```
 
 The regression model proposed above would let me estimate the average treatment effect, gender effects, and the interaction effect. Given that the treatment was randomly assigned, I can assume that the characteristics of the households that received the UCT and those that did not are roughly similar. Nevertheless, I can get better estimates by including in the model number of kids, household size, age, and education, all of which likely affect the level of social consumption as shown in the DAG proposed before.
 
-### Food Consumption
+Table 1 shows the estimates for the parameters of interest in the model in the log scale.
+Overall, there seems to be a negative treatment effect: households that received UCT spent less on social consumption than those that did not.
+There seem not to be any gender effect nor interaction effect.
 
+To see the fit of the model with the data and taking the exponential of the estimates to get them back in the original scale, I plot in Figure 6, 50 draws from the posterior predictive next to the data to evaluate visually the fit of the model. Overall, the model follows the similar trend as the data, but it seems to consistently overestimate lower levels of consumption, and underestimate medium levels of consumption (around 1800 KES and 5000 KES). When the results are broken down by gender, the model correctly estimates a higher mass of females in the lower levels of consumption, but again it overestimates the number of women in the lower levels of consumption.
+T
+```{r, echo = FALSE, fig.cap="Data in red, with draws from the posterior predictive in grey", fig.dim = c(5,4)}
+post_pred <- predicted_draws(m_cons_social, newdata = d)
 
-Regarding food consumption, the effects are different to social consumption
+post_pred %>% 
+    filter(.draw < 51 ) %>%
+    ggplot() + 
+    geom_density(aes(x = exp(.prediction)-1, group = .draw), 
+                 alpha = 0.1, col  ="grey") +
+    geom_density(data = df_ml, aes(x=cons_social), col = "red") + xlim(c(0, 15000)) + 
+  labs( x = "Social Consumptions (KES)", y = "Density")
+```
 
-```{r, echo = FALSE, fig.dim = c(8,5), fig.cap=""}
+```{r,echo = FALSE, fig.cap="Data in red, with draws from the posterior predictive in grey broken down by gender", fig.dim = c(5,4)}
+temp_df <- df_ml %>%
+      mutate(female = ifelse(female == 1, "Female", "Male"))
+post_pred %>% 
+    mutate(female = ifelse(female == 1, "Female", "Male"),
+             treat =ifelse(treat ==1, "Yes", "No")) %>%
+    filter(.draw < 51 ) %>%
+    ggplot() + 
+    geom_density(aes(x = exp(.prediction), group = .draw), 
+                 alpha = 0.1, col  ="grey") +
+    geom_density(data = temp_df, aes(x=cons_social), col = "red") + xlim(c(0, 15000)) + 
+  labs( x = "Social Consumptions (KES)") + 
+  facet_grid(female~.)
+```
+
+## Food Consumption
+
+The density plots show different patterns from those shown in the social consumption variable. It looks like the UCT had an effect on the way people spend their money. Surprisingly, the mass shifted away from the highest density peak, but not in a particular direction. This suggest that the UCT intervention increased the consumption for some recipients but decreased it for others. 
+
+```{r, echo = FALSE, fig.dim = c(5,4), fig.cap="KDE representation of food consuption broken down by gender and by treatment"}
 df_ml %>%
-  mutate(gender = ifelse(gender == 1, "Male", "Female")) %>%
   filter(treat == 1 | purecontrol == 1) %>%
+   mutate(gender = ifelse(gender == 1, "Male", "Female"),
+         treat =ifelse(treat ==1, "Yes", "No")) %>%
   ggplot(aes(x = cons_food,
              fill = as.factor(treat))) +
   geom_density(alpha = 0.5) + 
   labs(y = "Density", 
        x = "KES",
-       title = "Effect of Receving a Transaction on Social Consumption",
-       fill = "Treatment") + 
+       title = "Effect of Receving a Transaction on Food Consumption",
+       fill = "UCT Recipient") + 
   facet_grid(gender~.)
 ```
 
 
-```{r, echo = FALSE, fig.cap=c(5,5)}
+```{r, echo = FALSE, fig.cap=c(8,5), fig.cap="Empirical cumulative distribution of food consuption broken down by gender and by treatment"}
 df_ml %>%
   filter(treat == 1 | purecontrol == 1) %>%
-  mutate(gender = ifelse(gender == 1, "Male", "Female")) %>%
+  mutate(gender = ifelse(gender == 1, "Male", "Female"),
+                  treat =ifelse(treat ==1, "Yes", "No")) %>%
   ggplot(aes(x = cons_food,
              col = as.factor(treat))) +
   stat_ecdf() +
   labs(x = "KES", y = "ECDF", 
-       col = "Treatment",
-       title = "Cumulative Distribution function for Social consumption") +
+          col = "UCT Recipient",
+       title = "Cumulative Distribution function for Food consumption") +
   facet_grid(gender~.)
 ```
 
 
-```{r echo = FALSE}
+```{r echo = FALSE, results = 'hide'}
 d <- list(
   cons_food = log(df_ml$cons_food + 1),
-  treat = ifelse(df_ml$treat ==1, 1, 2),
-  female = ifelse(df_ml$female == 1, 1, 2),
-  numkids = df_ml$children,
-  hhsize = df_ml$hh_size,
-  treatXfemale = df_ml$treatXfemale,
+  treat = df_ml$treat,
+  female = df_ml$female,
+  numkids = standardize(df_ml$children),
+  hhsize = standardize(df_ml$hh_size),
+  treat_female = df_ml$treat*df_ml$female,
+  #treatXfemale = df_ml$treatXfemale,
   village = df_ml$village_id
 )
 
 m_cons_food <- ulam(
   alist(
     cons_food ~ normal(mu, sigma),
-    mu <- b1[treatXfemale] + tau*b2[village] +b3*numkids + b4*hhsize,
-    b1[treatXfemale] ~ normal(8, 4),
-    b2[village] ~ normal(0, 1),
-    b3 ~ normal(0, 1),
-    b4 ~ normal(0, 1),
-    sigma ~ exponential(1),
-    tau ~ exponential(1)
-      ), data = d, chain = 2, iter = 2000
-)
+    mu <- a + b1*treat_female + b2*treat + b3*female + tau*b4[village] + b5*numkids + b6*hhsize,
+    a ~ normal(5,2),
+    b1 ~ normal(0, 2),
+    b2 ~ normal(0, 2),
+    b3 ~ normal(0, 2),
+    b4[village] ~ normal(0, 1),
+    b5 ~ normal(0, 1),
+    b6 ~ normal(0, 1),
+    tau ~ exponential(1),
+    sigma ~ exponential(1)
+), data = d, chain = 3, iter = 3000)
+```
 
+```{r, echo = FALSE, fig.cap="Estimated values for the parameters in the log scale"}
+post <- extract.samples(m_cons_food)
+post$te <- 1/2*(2*post$b2 + post$b1)
+post$ge <- (2*post$b3 + post$b1 - post$b2)/2
+cons_table <- precis(post) %>% 
+  as_tibble() %>% 
+  select(1:4)
+
+cons_table$id <- c("Alpha", "B1 (femaleXtreat)", "B2 (treat)", "B3 (female)", "b5", "b6", "tau", "sigma" ,"Treatment Effect", "Gender Effect")
+
+cons_table %>%
+  filter(id != "b5", id != "b6") %>%
+  select(id, mean, sd,  `5.5%`,  `94.5%`) %>%
+  mutate(across(.cols = is.numeric, round, 2),
+         #across(.cols = is.numeric, exp)
+         ) %>%
+  kable("latex", booktabs = T, caption = "Estimated parameters for the food consumption model",
+        
+         col.names = c("Parameter", "Mean", "SD", "5.5%", "94.5%")) %>%
+  kable_styling(position = "center", latex_options = "striped", full_width = T)
+```
+
+Table 2 shows the estimated parameters of interest from the model in the log scale. The contrasts presented at the beginning were already computed.
+The small value of tau represents the fact that there seems to be very low between village variation. It seems that all the villages in the sample are very similar regarding their amount of food consumption.
+The estimates for gender effects and treatment effects are negative. However, the estimate for gender effects includes the zero and if it is negative, is very small (an average reduction of 8.62 KES).
+On the other hand, there seems to be a negative treatment effect. The model estimates that households that received the UCT spent less than the households that did not received money.
+Equally, it seems that people who were treated spent less in food on average than those who were not. This result is surprising because in a developing country one could expect that some extra money for food would be welcome or at least that extra money would not reduce the amount spent in food. This could be explain by people deciding to save that money instead of spending it on food.
+
+To show the fit of the model with the actual data, I plotted 50 draws from the posterior predictive, next to the actual data. I plotted them twice: once, from the whole data, as shown in Figure 10, but then broken down by gender.
+The models seems to overestimate the amount of households that spend an amount lower than 2000 kes (aprox). Similarly, it overestimates the amount of households that spend more than 2500 KES (aprox).
+Even if the fit is not the best, and the estimates seem a bid biases towards smaller values, the model seems to capture the overall trend of the data. This could mean that other variables, or more data could help to fit better the data.
+
+```{r, echo = FALSE, fig.cap="Data in red, with draws from the posterior predictive in grey", fig.dim = c(5,4)}
 post_pred <- predicted_draws(m_cons_food, newdata = d)
 
 post_pred %>% 
-    filter(.draw < 50) %>%
+    filter(.draw < 51 ) %>%
     ggplot() + 
-    geom_density(aes(x = .prediction, y= ..scaled.., group = .draw), 
-                 alpha = 0.1) + 
-   # coord_cartesian(xlim = c(0, 6000)) + 
-  geom_density(data = df_ml, aes(x=cons_food, y = ..scaled..), col = "red")
+    geom_density(aes(x = exp(.prediction)-1, group = .draw), 
+                 alpha = 0.1, col  ="grey") +
+    geom_density(data = df_ml, aes(x=cons_food), col = "red") + xlim(c(0, 15000)) + 
+  labs( x = "Food Consumptions (KES)", y = "Density")
+```
 
+
+```{r,echo = FALSE, fig.cap="Data in red, with draws from the posterior predictive in grey broken down by gender", fig.dim = c(5,4)}
+temp_df <- df_ml %>%
+      mutate(female = ifelse(female == 1, "Female", "Male"))
 post_pred %>% 
-    filter(.draw < 50) %>%
+    mutate(female = ifelse(female == 1, "Female", "Male"),
+             treat =ifelse(treat ==1, "Yes", "No")) %>%
+    filter(.draw < 51 ) %>%
     ggplot() + 
     geom_density(aes(x = exp(.prediction), group = .draw), 
-                 alpha = 0.1) + 
-    # coord_cartesian(xlim = c(0, 6000)) + 
-    geom_density(data = df_ml, aes(x=cons_food), col = "red") + coord_cartesian(xlim = c(0, 11000))
+                 alpha = 0.1, col  ="grey") +
+    geom_density(data = temp_df, aes(x=cons_food), col = "red") +
+  xlim(c(0, 15000)) + 
+  labs( x = "Food Consumptions (KES)") + 
+  facet_grid(female~.)
 ```
+
 
 ### Price Change
 
-One of the main problems of the UCT programs is that prices may increase due to the extra cash that flows into the system. The research team calculated a price index for each village. The price index is centered around 0 
+One of the main problems of the UCT programs is that prices may increase due to the extra cash that flows into the system. The research team calculated a price index for each village. The price index is based on a basket of goods and is standardized: centered around 0.
 
-```{r, echo = FALSE, fig.cap="", results='hide', message=FALSE, warning=FALSE}
+Figure 12 shows the results of the contrasts between the estimated mean price index for villages treated and non treated. The vertical line represents the mean price index difference. The posterior of the model is centered around this mean but there is a distributions around this value.
+
+```{r, echo = FALSE, results='hide', message=FALSE, warning=FALSE}
 d2 <- list(
 price = price_plot$v_price_index,
 treat = ifelse(price_plot$transaction == 1, 1, 2)
@@ -476,7 +565,7 @@ post_m_price <- extract.samples(m_price)
 post_m_price$diff_price <- post_m_price$b1[,2] - post_m_price$b1[,1]
 ```
 
-```{r, echo = FALSE, fig.cap="Distribution of differences between the beta estimates from ", fig.cap=c(4,4)}
+```{r, echo = FALSE, fig.cap="Distribution of differences between the beta estimates from ", fig.dim=c(4,3)}
 post_m_price %>%
   as.data.frame() %>%
 ggplot(aes(x = diff_price)) +
@@ -488,17 +577,8 @@ ggplot(aes(x = diff_price)) +
 rs <- t.test(price_plot$v_price_index ~ price_plot$transaction)
 ```
 
-The mean difference is not statistically different `r paste0("t= ",round(rs$statistic[[1]]), " p = ", round(rs$p.value[[1]],3))`. The box plots show that both the treated and the non-treated villages are similarly distributed around the mean price index.
-
-```{r, echo =FALSE, fig.cap="Boxplot of the distribution of prices", fig.dim=c(3,4)}
-ggplot(price_plot, 
-       aes(x = as.factor(purecontrol), 
-           y = v_price_index
-       )) +
-  geom_boxplot(
-  ) + 
-  labs(y = "Price Index", x = "Treated Villages") 
-```
+I got the same results doing a t test. The mean difference is not statistically different `r paste0("t= ",round(rs$statistic[[1]]), " p = ", round(rs$p.value[[1]],3))`. The box plots show that both the treated and the non-treated villages are similarly distributed around the mean price index.
+This shows that both statistical approaches arrive at the same conclusion: given the data, the most likely for the mean price index difference is zero.
 
 ```{r, echo = FALSE}
 ol_IQR = function(z){
@@ -525,12 +605,20 @@ price_plot_noutliers <- price_plot %>%
 t.outliers <- t.test(data = price_plot_noutliers, v_price_index ~ transaction)
 ```
 
-Both treatments have the same number of villages (non-treated 62 and treated 60). However, there are `r length(ols_IQR$v_price_index$val)` outliers according to the $1.5*IQR$ criteria as the box plot shows. When I remove these outliers, both groups even more similar as shown by Figure XXX, and there are still not significant differences (`r paste0("t= ",round(t.outliers$statistic[[1]]), " p = ", round(t.outliers$p.value[[1]],3))`).
+Both treatments have the same number of villages (non-treated 62 and treated 60). However, there are `r length(ols_IQR$v_price_index$val)` outliers according to the $1.5*IQR$ criteria as the box plot shows. When I remove these outliers, both groups are even more similar as shown by Figure 13 right, and there are still not significant differences (`r paste0("t= ",round(t.outliers$statistic[[1]]), " p = ", round(t.outliers$p.value[[1]],3))`).
 
 The lack of identification could be due to two things: first, there no effect of these transactions on the price index. The amount was not enough to influence the prices overall. Secondly, there are hidden variables that prevent identification. For example, I don't have information on the population of the villages. On average have 100 households, but I don't know the distribution of the villages' populations. The outliers can be villages with small populations where the price was affected because the transaction was big relative to population. I don't have enough information to evaluate this hypothesis. 
 Finally, I cannot conclude that absence of evidence is evidence of absence: maybe the effect exists but there was not enough power to identify it because the data is very noisy, the measure was poorly constructed, or the effect size is very small. However, I can asses that, taking these limitations into account, there is no evidence that there was a change in prices due to the unconditional cash transfer program.
 
-```{r, echo = FALSE, fig.cap="Boxplot after identifying and removing outliers outside of the 1.5*IQR", fig.dim = c(3,4)}
+```{r, echo = FALSE, fig.cap="Boxplots. To the left the whole data set. To the right, after removing outliers with the 1.5*IQR criteria", fig.dim = c(3,4), out.width="50%", fig.show="hold"}
+ggplot(price_plot, 
+       aes(x = as.factor(purecontrol), 
+           y = v_price_index
+       )) +
+  geom_boxplot(
+  ) + 
+  labs(y = "Price Index", x = "Treated Villages") 
+
 ggplot(price_plot_noutliers, 
        aes(x = as.factor(purecontrol), 
            y = v_price_index
@@ -540,21 +628,24 @@ ggplot(price_plot_noutliers,
   labs(y = "Price Index", x = "Treated Villages")
 ```
 
-
-## Limitations 
-
-One very important question that was not considered in the design of the paper and form which data is not available, is the effect of the transfers on the labor market. One of the criticisms to UCT, and UBI is that it will make people not go to work as their incentives will be.
-
 ## Conclusions
 
-Regarding the research questions, one can conclude three things. There seem not to be any effects of the treatment on social consumption when we ignore gender. These results appear once we see how men and women respond to the treatment. Overall, women seem to spend more money than men, 
+Regarding the research questions, there seem to be negative effects of the treatment in both measures of consumption (RQ 1 and 2). This result is very surprising and goes against the conclusions of the original study (Haushofer, Shapiro). Different results can be due to different reasons: I ran a Hierarchical Bayesian regression with a few predictors, those available in a small version of the complete data frame that I was able to get a hold of. On top of this, establishing priors could have change the actual estimates, and using the log transformation on consumption was another analysis decision I took to fit the model more easily. Finally, I could have made a mistake in setting up the regression or defining the variables.
 
+Regarding RQ3, there is no evidence of gender effects on both measures. This result is surprising to me given that previous research has found the importance of gender in UCT programs because of different spending patterns between men and women (see for example (2006)). However, is true that I'm considering a very limited set of variables, and that the differences estimated in the literature could be observed in other unmeasured variables such as savings behavior, health or educational investment, among others.
 
-There is no evidence of a price increase because of the treatment. As mentioned before, the study was not design to test the hypothesis of whether UCT increase prices, but this is one pervasive criticism to these kinds of programs. It is important to point out that absence of evidence does not imply evidence of absence. There are several reasons that could explain this lack of result. First, there is a lot of variation between the villages, that could be hiding a very small effect that is difficult to detect because of lack of power. Secondly, I was not able to control by the population of each village. It is very likely that the price is more affected in less populous villages than in more populous ones. Similarly, I don't have information on the wealth of each village. It is also likely that the wealthiest villages are not that affected by the UCT as the less wealthiest ones. I cannot control by these variables.
+Regarding RQ4, there is no evidence of a price increase because of the treatment. As mentioned before, the study was not design to test the hypothesis of whether UCT increase prices, but this is one pervasive criticism to these kinds of programs. It is important to point out that absence of evidence does not imply evidence of absence. There are several reasons that could explain this lack of result. First, there is a lot of variation between the villages, that could be hiding a very small effect that is difficult to detect because of lack of power. Secondly, I was not able to control by the population of each village. It is very likely that the price is more affected in less populous villages than in more populous ones. Similarly, I don't have information on the wealth of each village. It is also likely that the wealthiest villages are not that affected by the UCT as the less wealthiest ones. I cannot control by these variables.
+
+Finally, there is a lot of space for research on other types of impact. Some of the more interesting impacts are outside of the scope of this paper. For example, the impact of UCT on the labor market, and more sophisticated measures of psychological well-being. The problem with the measures used in this study is that, besides being self-reported, they were collected at the end of the study which creates a confound: treated people know that the study is over and therefore may feel bad because they will not longer be receiving money.
+In addition, there could have been spillover effects that were not studied in this paper, but that make the identification of the program's consequences harder.
+
+Furthermore, there is also other measures of the use of money that were not considered in this study such as investment in health, education, business creation and/or savings. To fully understand the effects of UCT as a tool for reducing poverty and/or improving the lives of the people that need it the most, it is necessary to consider all of these variables, and probably more, as well as to conduct more experiments with different populations around the world because there may be cultural or circumstantial effects that make it hard to estimate how effective these programs are.
 
 
 \pagebreak
 # References
 
+(2016). Making Money Work: Unconditional cash transfers allow women to save and re-invest in rural Zambia, Innocenti Working Papers no. 2016-02, 
 
+Haushofer,J \& Shapiro, J (2016), The Short-term Impact of Unconditional Cash Transfers to the Poor: Experimental Evidence from Kenya, The Quarterly Journal of Economics, Volume 131, Issue 4, Nov, Pages 1973–2042, https://doi.org/10.1093/qje/qjw025
 
