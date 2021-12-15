@@ -173,7 +173,7 @@ The mean is dependent on the treatment and the gender of the recipient to measur
 | 3 | 1 | 0 | 398 |
 | 4 | 1 | 1 | 238 |
 
-To estimate the effect of gender, I have to do contrasts between the coefficients
+To estimate the effect of gender, I have to do contrasts between the coefficients $\beta_{1}$, and$\beta_{2}$. To get the treatment effect, I need to do a contrast between coefficients $\beta_{2}$, and $\beta_{4}$
 
 
 ### Price 
@@ -194,11 +194,11 @@ plot(dag_q3)
 ```
 
 $$\text{Prices} \sim \text{Normal}(\mu, \sigma)$$
-$$\mu =  \alpha_{[treat]}$$
+$$\mu = \alpha_{[treat]}$$
 $$\alpha_{[treat]} \sim \text{Normal}(0, 5)$$
 $$\sigma \sim \text{Exponential}(1)$$
 
-where $\alpha_{[treat]}$ represents an index variable. In this case it takes two values, 1 or 2, which stands for treated village and non-treated village, respectively. This is 
+where $\alpha_{[treat]}$ represents an index variable. In this case it takes two values, 1 or 2, which stands for treated village and non-treated village, respectively. The result will have three estimates: $\alpha_{[1]}$ that represents the mean price of the treated villages, $\alpha_{[2]}$ that represents the mean price of the non-treated villages, and $\sigma$ which represents the variation around the 
 
 I will run two models to answer questions two and three.
 The first model will estimate what 
@@ -267,8 +267,7 @@ For this analysis I compare the households that received the transaction against
 
 As the graph shows, social consumption seems to be roughly similar between treatment and control, but different between genders. There is more mass in the the lowest part of the distribution for females.
 For men, there seems to be a slight shift from lower to higher values of social consumption. 
-The empirical cumulative distribution is shown in Figure XX. It shows that these curves are very close to each other. A Kolmogorov-Smirnoff test shows that these curves are not statistically different both for the female recipients (p = 0.754) and for the male recipients (p = 0.3833).
-
+The empirical cumulative distribution is shown in Figure XX. It shows that these curves are very close to each other. A Kolmogorov-Smirnoff test shows that these curves are not statistically different both for the female recipients ($p = 0.754$) and for the male recipients ($p = 0.3833$).
 
 
 ```{r, echo = FALSE, fig.dim = c(8,5), fig.cap=" Distribution of amount spend in social consumption in the past 12 months"}
@@ -284,7 +283,6 @@ data %>%
        fill = "Treatment") + 
   facet_grid(female~.)
 ```
-
 
 ```{r, echo = FALSE, fig.cap=c(5,5), fig.cap="Empirical Cumulative distribution for those that "}
 data %>%
@@ -384,6 +382,7 @@ The regression model proposed above would let me estimate the average treatment 
 
 
 Regarding food consumption, the effects are different to social consumption
+
 ```{r, echo = FALSE, fig.dim = c(8,5), fig.cap=""}
 df_ml %>%
   mutate(gender = ifelse(gender == 1, "Male", "Female")) %>%
@@ -492,27 +491,13 @@ rs <- t.test(price_plot$v_price_index ~ price_plot$transaction)
 The mean difference is not statistically different `r paste0("t= ",round(rs$statistic[[1]]), " p = ", round(rs$p.value[[1]],3))`. The box plots show that both the treated and the non-treated villages are similarly distributed around the mean price index.
 
 ```{r, echo =FALSE, fig.cap="Boxplot of the distribution of prices", fig.dim=c(3,4)}
-p1 <- ggplot(price_plot, 
+ggplot(price_plot, 
        aes(x = as.factor(purecontrol), 
            y = v_price_index
        )) +
   geom_boxplot(
   ) + 
   labs(y = "Price Index", x = "Treated Villages") 
-
-p2 <- ggplot(price_plot, 
-       aes(x = as.factor(purecontrol), 
-           y = v_price_index
-       )) +
-  geom_jitter(
-    width = 0.25
-  ) + 
-  stat_summary(fun.data = mean_se,
-               col = "red",
-               geom = "errorbar") +
-  labs(y = "Price Index", x = "Treated Villages")
-#ggarrange(p1, p2, nrow = 1)
-p1
 ```
 
 ```{r, echo = FALSE}
