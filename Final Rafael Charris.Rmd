@@ -155,10 +155,12 @@ plot(dag_q1)
 Taking into account this caveats, a model that can be used to estimate the effect of the treatment on social consumption is the following:
 
 $$\text{Social Consumption}_{stnd} \sim \text{Normal}(\mu, \sigma)$$
-$$\mu \sim \beta_{1[treatXfemale]} + \beta_{2[village]}*\tau + \beta_{2}\text{Numkids} + \beta_{4}\text{HHSize}$$
+$$\mu \sim \beta_{1[treatXfemale]} + \beta_{2[village]}*\tau + \beta_{3}\text{Numkids} + \beta_{4}\text{HHSize}$$
 $$\beta_{1[treatXfemale]} \sim \text{Normal}(0, 2)$$
 $$\tau \sim \text{Exponential}(1) $$
 $$\sigma \sim \text{Exponential}(1)$$
+
+This is a multilevel model because it assumes that each village has a different intercept. The formulation is different from the most traditional but is equivalent to assuming that the great mean $\bar{alpha}$ is 
 
 The model assumes that social consumption is distributed normally around certain $\mu$, and with certain standard deviation $\sigma$. Although consumption could be log normally distributed, where the distribution has a lower bound in zero and a very long tail to the right, I normalized the variable for easy of analysis.
 
@@ -173,45 +175,6 @@ The mean is dependent on the treatment and the gender of the recipient to measur
 
 To estimate the effect of gender, I have to do contrasts between the coefficients
 
-## Happiness
-
-The program collected data on the level of happiness of the participants. The instrument to measure it was the World Values Survey which measures various variables. To measure happiness, the survey asks people "Taking all things together, would you say you are (fill in the value)". The options are:
-
-1 = Very happy, 
-2 = Rather happy, 
-3 = Not very happy 
-4 = Not at all happy
-
-Given that the response variable is a ordered categorical variable, I conducted and ordered logit model, that should be able to estimate the probability of going from one level of happiness to another depending on whether the person received the UCT.
-To understand the relationship between the variables, I plot the DAG showing causal relationships between different factors and happiness.
-
-```{r, echo = FALSE, fig.dim = c(3,4), fig.cap = "DAG for question 1"}
-dag_q2 <- dagitty(
-  "dag{
-  Treatment -> Happiness
-  Treatment -> NeighborNotTreated
-  NeighborNotTreated -> Happiness
-  Gender -> Happiness
-  NumKids -> Happiness
-  Education -> NumKids
-  Education -> Happiness
-  Treatment -> CurrentIncome
-  Income -> Happiness
-  Wealth -> Happiness
-  Education -> Wealth
-  Education -> Income
-  EmploymentStatus -> Happiness 
-  }"
-)
-plot(dag_q2)
-```
-
-$$\text{Happiness} \sim \text{Ordered-logit}(\mu, \sigma)$$
-$$\mu \sim \alpha_{[treatXfemale]} + \beta_{1[village]}$$
-$$\alpha_{[treatXfemale]} \sim \text{Normal}(4000, 1000)$$
-$$\beta_{1[village]} \sim \text{Normal}(2000, 5000)$$
-$$\sigma \sim \text{Exponential}(0.001)$$
-$$\tau \sim \text{Exponential}(0.001)$$
 
 ### Price 
 
@@ -362,6 +325,7 @@ d <- list(
   female = ifelse(df_ml$female == 1, 1, 2),
   numkids = df_ml$children,
   hhsize = df_ml$hh_size,
+  treat_female = df_ml$treat*df_ml$female,
   treatXfemale = df_ml$treatXfemale,
   village = df_ml$village_id
 )
@@ -381,6 +345,33 @@ m_cons_social <- ulam(
     sigma ~ exponential(1)
   ), data = d, chain = 2, iter = 2000
 )
+
+d <- list(
+  cons_social = log(df_ml$cons_social + 1),
+  treat = df_ml$treat,
+  female = df_ml$female,
+  numkids = df_ml$children,
+  hhsize = df_ml$hh_size,
+  treat_female = df_ml$treat*df_ml$female,
+  treatXfemale = df_ml$treatXfemale,
+  village = df_ml$village_id
+)
+
+m_cons_social <- ulam(
+  alist(
+    cons_social ~ normal(mu, sigma),
+    mu <- b1*treat_female + b5*treat + b6*female + a+ tau*b2[village] + b3*numkids + b4*hhsize,
+    a ~ normal(5,2),
+    b1 ~ normal(5, 2),
+    b2[village] ~ normal(5, 2),
+    b3 ~ normal(2, 1),
+    b4 ~ normal(2, 1),
+    b5 ~ normal(6,3),
+    b6 ~ normal(5,2),
+    tau ~ exponential(1),
+    sigma ~ exponential(1)
+  ), data = d, chain = 2, iter = 2000
+)
 ```
 
 ```{r, fig.cap="Estimates for the treatment effects and for the errors", fig.dim=c(4,3), echo = FALSE}
@@ -388,37 +379,6 @@ plot(precis(m_cons_social, depth = 2, pars = c("b1","tau", "sigma")))
 ```
 
 The regression model proposed above would let me estimate the average treatment effect, gender effects, and the interaction effect. Given that the treatment was randomly assigned, I can assume that the characteristics of the households that received the UCT and those that did not are roughly similar. Nevertheless, I can get better estimates by including in the model number of kids, household size, age, and education, all of which likely affect the level of social consumption as shown in the DAG proposed before.
-
-
-
-```{r, echo = FALSE, results='hide', message=FALSE, warning=FALSE, eval = FALSE}
-## Happiness (Ordinal regression)
-d1 <- df_mi %>%
-  mutate(wvs_happiness = 5 - as.numeric(wvs_happiness),
-         treat = ifelse(treat==1, 1, 2))
-
-d <- list(
-  happ = as.numeric(d1$wvs_happiness),
-  gender = d1$gender,
-  treat = d1$treat,
-  village = d1$rowid
-)
-
-m <- ulam(
-  alist(
-    happ ~ dordlogit(phi, cutpoints),
-    phi <- b1[treat] + b2[gender],
-    cutpoints ~ dnorm(0, 1),
-    b1[treat]  ~ dnorm(0, 1),
-    b2[gender] ~ dnorm(0, 1),
-    a_bar ~ dnorm(0, 2), # I'm estimating the grandmean
-    sigma ~ exponential(1)
-  ), data = d, chains=1
-)
-post <- extract.samples(m)
-plot(precis(post, depth = 2))
-```
-
 
 ### Food Consumption
 
@@ -451,10 +411,6 @@ df_ml %>%
        title = "Cumulative Distribution function for Social consumption") +
   facet_grid(gender~.)
 ```
-
-
-
-
 
 
 ```{r echo = FALSE}
@@ -599,6 +555,7 @@ ggplot(price_plot_noutliers,
   labs(y = "Price Index", x = "Treated Villages")
 ```
 
+
 ## Limitations 
 
 One very important question that was not considered in the design of the paper and form which data is not available, is the effect of the transfers on the labor market. One of the criticisms to UCT, and UBI is that it will make people not go to work as their incentives will be.
@@ -606,6 +563,9 @@ One very important question that was not considered in the design of the paper a
 ## Conclusions
 
 Regarding the research questions, one can conclude three things. There seem not to be any effects of the treatment on social consumption when we ignore gender. These results appear once we see how men and women respond to the treatment. Overall, women seem to spend more money than men, 
+
+
+There is no evidence of a price increase because of the treatment. As mentioned before, the study was not design to test the hypothesis of whether UCT increase prices, but this is one pervasive criticism to these kinds of programs. It is important to point out that absence of evidence does not imply evidence of absence. There are several reasons that could explain this lack of result. First, there is a lot of variation between the villages, that could be hiding a very small effect that is difficult to detect because of lack of power. Secondly, I was not able to control by the population of each village. It is very likely that the price is more affected in less populous villages than in more populous ones. Similarly, I don't have information on the wealth of each village. It is also likely that the wealthiest villages are not that affected by the UCT as the less wealthiest ones. I cannot control by these variables.
 
 
 \pagebreak
