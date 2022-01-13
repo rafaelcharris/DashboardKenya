@@ -1,16 +1,17 @@
 ---
-title: "UBI Kenya Dashboards"
+title: "UCT Kenya Dashboards"
 author: "Rafael Charris"
 date: "11/22/2021"
 output: 
   flexdashboard::flex_dashboard:
     orientation: rows
-    source_code: embed
+    vertical_layout: scroll
 runtime: shiny
 ---
 
 ```{r setup, include=FALSE, message=FALSE, warning=FALSE}
 library(flexdashboard)
+library(knitr)
 library(haven) # to read dta files
 library(foreign)
 library(leaflet)
@@ -22,7 +23,9 @@ library(ggmap)
 library(shinyWidgets)
 library(plotly)
 library(ggthemes)
+library(dagitty)
 
+theme_set(theme_minimal())
 #General data set
 df <- read.dta("./data/cashtransfers_v12.dta") %>%
   filter
@@ -45,7 +48,7 @@ price_plot_summary <- price_plot %>%
             sd_price = sd(v_price_index))
 
 df_plot = df %>%
-  mutate(treat = ifelse(treat == 1, "UCT == Yes", "UCT == No"))
+  filter(!is.na(gender), !is.na(wvs_happiness))
 #kenya_geo <- sf::st_read("data/kemajor-towns/ke_major-towns.shp")
 ```
 
@@ -57,19 +60,22 @@ Row
 
 ### Purpose of the project
 
-Here I explain what the project consists on 
+This program was implemented by the NGO **Give Directly** between 2011 and 2013 in western Kenya. The purpose of this NGO is to make unconditional cash transfers to poor households in developing countries. The evaluation of this program was conducted by a team of researchers from Princeton and Busara Center of Behavioral Economics led by Johannes Haushofer and Jeremy Shapiro.
 
 #### Design
 
-This program was implemented by the NGO **Give Directly** between 2011 and 2013 in western Kenya. The purpose of this NGO is to make unconditional cash transfers to poor households in developing countries. The evaluation of this program was conducted by a team of researchers from Princeton and Busara Center of Behavioral Economics led by Johannes Haushofer and Jeremy Shapiro.
+#### Double randomization
 
-The design has two levels of randomization and three treatments. The first level of 
-Households were selected if they had thatched roof[^1]. They choose the household using a survey.
-[1 I don't know if this is a good criteria for deciding which household was the poorest]
-After identification, representatives of GD went to each elected household and told the recipient that they would received 404 USD total. They were informed also about the schedule of the transaction (lump-sum vs direct).
-They were given a SIM card and were asked to register to the service M-Pesa: a mobile banking service present in Kenya, Tanzania, Afganistan, Uganda, Rwanda and Tanzania.
+```{r}
+renderImage({
+    list(src = "design.png", wight = 200, height = 170)
+  }, deleteFile = FALSE)
+```
 
-
+1. Selection criteria for villages: Highest proportion of thatched roofs.
+2. Monthly Transfer. Total: 25.200 KES (404 USD PPP)
+3. 9\% of the households choosen
+<!--
 1. amount given
 2. How did they select the villages (120 villages with the highest proportion of tatched roofs)
 3. All elegible villages were identified with a census
@@ -78,209 +84,385 @@ They were given a SIM card and were asked to register to the service M-Pesa: a m
 5. amount of transfer 25.200 KES (404 USD PPP)
 13,471 KES was the minimum wage in 2012
 1 usd = 62.4 KES
-
-questions: 
-1. frequency of the transfers 
-2. baseline and results dates
-
-Problem: purecontrol villages were identified 1 year later than their treatment villages controls counterparts
-
-map -> what color is non treated and what color is treated
+-->
+4. Potential Problem: purecontrol villages were identified 1 year later than their treatment villages controls counterparts
 
 #### Description of the variables
 
-* `price index`: 
-* `well being`: aggregated
+* `price index`: Aggregated and normalized index of prices at endline.
+* `Happiness`: World Values Survey responses
+* `Life Satisfaction`: World Values Survey responses
+* `Consumption` vars: Level of consumption the past week (KES)
 
-### TO-DO
+### Research Questions
 
-* Take care of missing values
+1. Does the UCT program increase the prices in the treated villages relative to the pure control villages?
 
-Dashboard
+2. Does receiving money increase social consumption of households?
+
+3. Does receiving money increase food consumption of households?
+
+4. Does receiving money increase happiness and/or life satisfaction?
+
+5. Are there any gender effects on consumption?
+
+Village Level
+==================
+
+Row 
+-----------------------------------------------------------------------
+### Description
+Each point is a village in which the study was conducted.
+The plot on the left shows the distribution of the price indices.
+
+Row
+-----------------------------------------------------------------------
+
+### Price Distribution
+```{r}
+p <- ggplot(price_plot, 
+            aes(x = as.factor(purecontrol), 
+                y = v_price_index
+            )) +
+  geom_jitter(
+    #position = "jitter",
+    aes(text = paste0(village, "\nPrice Index: ", round(v_price_index,2))),
+    width = 0.25
+  ) + 
+  stat_summary(fun = mean,
+               col = "red",
+               geom = "point") +
+  labs(y = "Price Index", x = "Treated Village") 
+
+renderPlotly({
+  ggplotly(p, tooltip = "text")
+    })
+```
+
+### Rarieda´s Map 
+```{r message=FALSE, warning=FALSE}
+pal <- colorNumeric(
+  palette  = c("green3", "red"), 
+  domain = df$purecontrol)
+
+ output$kenyamap <- renderLeaflet({
+  price_plot%>%
+  #distinct(village, .keep_all = TRUE) %>%
+  leaflet() %>%
+  addTiles() %>%
+  addCircles(label = ~htmlEscape(village),
+             color = ~pal(transaction)) %>%
+  addLegend(
+    title = "Received Transaction",
+    label = c("Yes", "No"),
+            color = ~pal(unique(transaction)))
+   })
+leafletOutput("kenyamap")
+```
+
+Household Level Analysis
 ==================
 
 Inputs {.sidebar}
 -----------------------------------------------------------------------
 
 ```{r}
-pickerInput("villageInput", label = h3("Village"), 
- choices = sort(unique(levels(df_plot$village))),
- selected = sort(unique(levels(df_plot$village))),
-   multiple = TRUE,
-  options = list(
-        `actions-box` = TRUE,
-        size = 10,
-        `selected-text-format` = "count > 3"
-      ),)
-
-checkboxGroupInput("treatmentInput", label = h3("Treatment"), 
-                   choices = unique(df_plot$treat),
-                   selected = unique(df_plot$treat))
-checkboxGroupInput("purecontrolInput", label = h3("Pure Control"), 
-                   choices = unique(df_plot$purecontrol),
-                   selected = 0)
-checkboxGroupInput("genderInput", label = h3("Gender"), 
-                   choices = unique(df_plot$gender),
-                   selected = unique(df_plot$gender))
-
+radioButtons("effectInput", label = h3("Effect"), 
+                   choices =  c("Transaction effect", "Spillover Effect"),
+                   selected = "Transaction effect")
+#pickerInput("villageInput", label = h3("Village"), 
+# choices = sort(unique(levels(df_plot$village))),
+# selected = sort(unique(levels(df_plot$village))),
+#   multiple = TRUE,
+#  options = list(
+#        `actions-box` = TRUE,
+#        size = 10,
+#        `selected-text-format` = "count > 3"
+#      ),)
 ```
 
-### Description
 
-Each point is a village in which the study was conducted. Feel free to change which villages you want to see. You can see how the UCT affected the region or how it affected the households within each village
-
-Row {data-height=300}
+Row{.tabset}
 -----------------------------------------------------------------------
-
-### Kenya´s Map 
-
-```{r message=FALSE, warning=FALSE}
-pal <- colorNumeric(
-  palette  = c("blue", "red"), 
-  domain = df$purecontrol)
-
- output$kenyamap <- renderLeaflet({df %>%
-  distinct(village, .keep_all = TRUE) %>%
-  leaflet() %>%
-  addTiles() %>%
-  addCircles(label = ~htmlEscape(village),
-             color = ~pal(purecontrol))})
-leafletOutput("kenyamap")
-```
-
-Row {.tabset}
------------------------------------------------------------------------
-
-### Price Distributions
+### Happiness
 ```{r}
-renderText({
- 
-})
-
-
-p <- ggplot(price_plot, 
-       aes(x = as.factor(purecontrol), 
-           y = v_price_index
-           )) +
-    geom_jitter(
-      #position = "jitter",
-             aes(text = paste0(village, "\nPI: ", round(v_price_index,2))),
-             width = 0.25
-             ) + 
-  stat_summary(fun = mean,
-             col = "red",
-             geom = "point") +
-  labs(y = "Price Index", x = "Treated Village") +
-  theme_minimal()
-
-renderPlotly({ggplotly(p, tooltip = "text")
-    })
-```
-
-
-### Well-Being
-```{r}
-filtered <- reactive(df_plot %>%
-                       filter(
-                              treat %in%input$treatmentInput,
-                              purecontrol %in% input$purecontrolInput,
-                              gender %in% input$genderInput)
+well_being_plot <- reactive(
+  if (input$effectInput == "Transaction effect"){
+    df_plot %>%
+      filter(treat == 1 | purecontrol == 1) %>%
+      ggplot(aes(x = as.factor(wvs_happiness),
+                 y = ..count../sum(..count..),
+                 fill = as.factor(treat))) +  
+       geom_histogram(
+         stat = "count",
+        position = "dodge",
+        alpha = 0.5,
+        col = "black"
+         ) +
+      labs(y = "Wellbeing", x = "Happines Level",
+           title = "Effect of Receving a Transaction",
+           fill = "Treatment") + 
+      scale_y_continuous(labels = function(x)paste0(x*100, "%"))
+                          
+  } else{
+    df_plot %>%
+      filter(treat == 0 | purecontrol == 1) %>%
+      ggplot(aes(x = wvs_happiness,
+                 y = ..count../sum(..count..),
+                 fill = as.factor(spillover))) +  
+      geom_histogram(stat = "count", 
+                     position = "dodge",
+                       alpha = 0.5,
+        col = "black") +
+      labs(y = "Wellbeing", x = "Hoseholds in Treated village",
+           title = "Spillover Effect",
+           subtitle = "Households that did not received a transaction in treated villages vs households that did not received a transaction in non-treated villages.",
+           fill = "Spillover")  + 
+      scale_y_continuous(labels = function(x)paste0(x*100, "%"))
+  }
+  
 )
 renderPlot({
-  filtered() %>%
-    ggplot(aes(x = as.factor(treat), y = wvs_happiness)) +  
-    geom_point( position = "jitter") +
-    labs(y = "Wellbeing", x = "Treatment") 
-  #+   theme_wsj()
+  well_being_plot() 
+})
+```
+
+
+### Life-Satisfaction
+```{r}
+life_satisfaction_plot <- reactive(
+  if (input$effectInput == "Transaction effect"){
+    df_plot %>%
+      filter(treat == 1 | purecontrol == 1) %>%
+      ggplot(aes(x = as.factor(wvs_life_sat), 
+                   y = ..count../sum(..count..),
+                 fill = as.factor(treat))
+             ) +  
+      geom_histogram(stat = "count", 
+                    position = position_dodge(width = 0.7),
+                           alpha = 0.5,
+        col = "black") +
+      labs(y = "Wellbeing", x = "Life Satisfaction",
+           title = "Effect of Receving a Transaction in Life Satisfaction",
+           fill = "Treated")  + 
+      scale_y_continuous(labels = function(x)paste0(x*100, "%")) 
+                          
+  } else{
+      df_plot %>%
+      filter(treat == 0 | purecontrol == 1) %>%
+      ggplot(aes(x = as.factor(wvs_life_sat), 
+                   y = ..count../sum(..count..),
+                 fill = as.factor(spillover))) +  
+      geom_histogram(stat = "count", 
+                     position = position_dodge(width = 0.7),
+                           alpha = 0.5,
+        col = "black") +
+      labs(y = "Wellbeing", x = "Life Satistifaction",
+           title = "Spillover Effect",
+           subtitle = "Households that did not received a transaction in treated villages vs households that did not received a transaction in non-treated villages.",
+           fill = "Spillover")  + 
+      scale_y_continuous(labels = function(x)paste0(x*100, "%")) 
+  }
+)
+renderPlot({
+  life_satisfaction_plot() 
 })
 ```
 
 
 ### Social Consumption
+
 ```{r}
 filtered_1 <- reactive({
-  df_plot %>% 
-    filter(treat %in% input$treatmentInput,
-           purecontrol %in% input$purecontrolInput,
-           gender %in% input$genderInput) 
+  if (input$effectInput == "Transaction effect"){
+    df_plot %>%
+      filter(treat == 1 | purecontrol == 1) %>%
+      ggplot(aes(x = cons_social,
+                 fill = as.factor(treat))) +
+      geom_density(alpha = 0.5) + 
+      labs(y = "Density", 
+           x = "KES",
+           title = "Effect of Receving a Transaction on Social Consumption",
+           fill = "Treatment")
+  } else {
+    df %>% 
+      filter(purecontrol == 1 | treat ==0) %>%
+      ggplot(aes(x = cons_social,
+               fill = as.factor(spillover))) +
+  geom_density(alpha = 0.5) + 
+     labs(x = "KES", y = "Density", 
+          fill = "Spillover",
+           title = "Spillover Effect")
+  }
 })
-renderPlot({
-  filtered_1() %>%
-    ggplot(aes(x = cons_social,
-              # y = ..prop..,
-               fill = as.factor(treat))) +
-    geom_density(alpha = 0.5) + 
-    #geom_bar(
-      #position = 'dodge', This is for the graphs to be completely separated 
-     # position = position_dodge(width = 0.7),
-      #col = 'black') +
-    #theme_wsj() +
-    labs(x = "$", y = "Density", fill = "Treatment")
 
+renderPlot({
+  filtered_1() 
 })
+```
 
+### Cumulative Distribution SC
+```{r}
 renderPlot({
-  df %>% 
-    filter(purecontrol == 1 | treat ==1) %>%
-    group_by(female) %>%
-    #mutate(per = n()/nrow(df)) %>%
-    #ungroup() %>%
-    ggplot(aes(x = cons_social,
-               y = per,
-               fill = as.factor(treat))) +
-    geom_histogram(alpha = 0.5,
-                   position = "dodge",
-                   bins = 10
-                   ) + 
-    facet_wrap(.~female) +
-     labs(x = "$", y = "Percentage", fill = "Treatment") + 
-    scale_y_continuous(labels = function(x)paste0(x*100,"%"))
+  if (input$effectInput == "Transaction effect"){
+    df_plot %>%
+      filter(treat == 1 | purecontrol == 1) %>%
+      ggplot(aes(x = cons_social,
+                 col = as.factor(treat))) +
+      stat_ecdf()+
+      labs(x = "KES", y = "ECDF", 
+           col = "Treatment",
+           title = "Cumulative Distribution function for food consumption",
+           subtitle = paste0("p = ",
+                             round(ks.test(
+                               df_plot$cons_social[df_plot$treat == 1],
+                               df_plot$cons_social[df_plot$treat == 0 &
+                               df_plot$purecontrol==1])$p.value,3))) 
+  } else {
+    df_plot %>%
+      filter(purecontrol == 1 | treat == 0) %>%
+      ggplot(aes(x = cons_social,
+                 col = as.factor(spillover))) +
+      stat_ecdf()+
+      labs(x = "KES",
+           y = "ECDF",
+           col = "Spillover",
+           title = "Cumulative Distribution function for food consumption",
+           subtitle = paste0("p = ",
+                             round(ks.test(
+                               df_plot$cons_social[df_plot$purecontrol == 0 & df_plot$treat == 0],
+                               df_plot$cons_social[df_plot$purecontrol == 1])$p.value,3)))
+  }
+  
 })
 ```
 
 ### Food Consumption
 ```{r}
-filtered_1 <- reactive({
-  df_plot %>% 
-  filter(treat %in% input$treatmentInput,
-         purecontrol %in% input$purecontrolInput,
-         gender %in% input$genderInput) 
+filtered_2 <- reactive({
+  if (input$effectInput == "Transaction effect"){
+    df_plot %>%
+      ggplot(aes(x = cons_food, fill = as.factor(treat))) +
+      geom_density(alpha = 0.5) + 
+      labs(x = "KES",
+           y = "Density",
+           fill = "Treatment",
+           title = "Effect of Receving a Transaction on Food Consumption"
+)
+    }
+  else {
+    df_plot %>%
+      filter(treat == 1 | purecontrol == 0) %>%
+      ggplot(aes(x = cons_food,
+                 fill = as.factor(spillover))) +
+       geom_density(alpha = 0.5) + 
+      labs(x = "KES",
+           y = "Density",
+           fill = "Spillover",
+                      title = "Spillover effect on Food Consumption"
+) 
+    }
 })
 renderPlot({
-filtered_1() %>%
-  ggplot(aes(x = cons_food, fill = as.factor(treat))) +
-  geom_density(alpha = 0.5) + 
-  labs(x = "$", y = "Density")
+filtered_2() 
 })
 ```
+
+### Cumulative Distribution FC
+```{r}
+renderPlot({
+  if (input$effectInput == "Transaction effect"){
+    df_plot %>%
+      filter(treat == 1 | purecontrol == 1) %>%
+      ggplot(aes(x = cons_food,
+                 col = as.factor(treat))) +
+      stat_ecdf()+
+      labs(x = "KES", y = "ECDF", 
+           col = "Treatment",
+           title = "Cumulative Distribution function for food consumption",
+           subtitle = paste0("p = ",
+                             round(ks.test(
+                               df_plot$cons_food[df_plot$treat == 1],
+                               df_plot$cons_food[df_plot$treat == 0 &
+                               df_plot$purecontrol==1])$p.value,3))) 
+  } else {
+    df_plot %>%
+      filter(treat == 0 | purecontrol == 0) %>%
+      ggplot(aes(x = cons_food,
+                 col = as.factor(spillover))) +
+      stat_ecdf()+
+      labs(x = "KES",
+           y = "ECDF",
+           col = "Spillover",
+           title = "Cumulative Distribution function for food consumption",
+           subtitle = paste0("p = ",
+                             round(ks.test(
+                               df_plot$cons_food[df_plot$purecontrol == 0 & df_plot$treat == 0],
+                               df_plot$cons_food[df_plot$purecontrol == 1])$p.value,3)))
+  }
+  
+})
+```
+
 
 Statistical Analysis
 ==================
 
 Row {.tabset}
 -----------------------------------------------------------------------
+### Happiness
 
-### KS Food Consumption
+#### Ordinal Multilevel Logit Model
 
-```{r}
-renderPlot({
-  filtered_1() %>%
-    ggplot(aes(x = cons_food,
-               col = as.factor(treat))) +
-    stat_ecdf()+
-    labs(x = "$", y = "ECDF", fill = "Treatment")
-})
+1. I will run to of these regressions one for the effect of the treatment, one for the spillover effect.
+
+2. My dependent variable is a discrete ordered variable $y \in \{1,2,3,4,5\}$
+
+3. My regression should show me the difference in well being depdening on gender
+
+4. The regression should tell me the probability of going from 1 level of happiness to the next.
+
+
+### Consumption Variables
+#### Multilevel Model
+1. I need a multilevel model here that let's me estimate the effect of the treatment on the different measures of consumption.
+
+2. I assume that there are different intercepts per village.
+
+3. I want to explore if there are gender effects on the consumption practices of people.
+```{r, echo = FALSE, fig.dim = c(3,4), fig.cap = "DAG for question 1", eval = FALSE}
+dag_q1 <- dagitty(
+  "dag{
+  Treatment -> Consumption
+  Gender -> Consumption
+  NumKids -> Consumption
+  HouseholdSize -> Consumption
+  Education -> Consumption
+  }"
+)
+plot(dag_q1)
 ```
+$$\text{Consumption} \sim \text{Log-Normal}(\mu, \sigma)$$
+$$\mu \sim  \beta_{1[treat]} + \beta_{2[female]} + \beta_{3[treatXfemale]} + \beta_{4[village]}$$
+$$\beta_{1[treat]} \sim \text{Log-Normal}(4000, 1000)$$
+$$\beta_{2[female]} \sim \text{Log-Normal}(4000, 1000)$$
+$$\beta_{3[treatXfemale]} \sim \text{Log-Normal}(4000, 1000)$$
+$$\beta_{4[village]} \sim \text{Log-Normal}(\bar{\alpha}, \tau)$$
+$$\bar{\alpha} \sim \text{Log-Normal}(2000, 500)$$
+$$\sigma \sim \text{Exponential}(0.001);\tau \sim \text{Exponential}(0.001)$$
 
-### KS social Consumption
-```{r}
-renderPlot({
-  df %>%
-    filter(purecontrol == 1 | treat ==1) %>%
-    ggplot(aes(x = cons_social,
-               col = as.factor(treat))) +
-    stat_ecdf() +
-    labs(x = "$", y = "ECDF", fill = "Treatment")
-})
-```
+Final
+==================
 
+### To-do
+* Take care of missing values and outliers
+* Run the multilevel regressions for the household level variables
+* Run the ordinal regressions
+* Explore gender effects on consupmtion and happiness
+
+
+### Limitations
+* The pure control group was choosen at the endline
+* Spending practices are not exhausted by food, and social consuption. Ex: savings, alcohol
+* I don't have information on the population of each village
+* Spillover effect among villages?
